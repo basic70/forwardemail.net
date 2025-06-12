@@ -136,7 +136,7 @@ router
     rateLimit(90, 'retrieve receipt'),
     web.myAccount.retrieveReceipt
   )
-  .get('/domains', paginate.middleware(10, 50), web.myAccount.listDomains)
+  .get('/domains', paginate.middleware(25, 50), web.myAccount.listDomains)
   // TODO: document this endpoint
   .post(
     '/aliases',
