@@ -216,17 +216,6 @@ nav.navbar(class=navbarClasses.join(" "))
                 data-toggle=isRegisterOrLogin ? false : "modal-anchor",
                 data-target=isRegisterOrLogin ? false : "#modal-sign-in"
               )= t("Log in")
-          if ctx.pathWithoutLocale !== '/register'
-            li.list-inline-item.d-none.d-md-inline-block
-              a.btn.btn-sm.btn-success.text-uppercase.font-weight-bold(
-                href=l("/register"),
-                data-toggle=isRegisterOrLogin ? false : "modal-anchor",
-                data-target=isRegisterOrLogin ? false : "#modal-sign-up"
-              )
-                if ctx.locale === 'de'
-                  = t("Register")
-                else
-                  = t("Signup")
       .no-js.is-bot.d-inline-block.mr-3
     if !isBot(ctx.get('User-Agent'))
       button.navbar-toggler.d-lg-none.no-js(
@@ -826,20 +815,6 @@ nav.navbar(class=navbarClasses.join(" "))
                     data-toggle=isRegisterOrLogin ? false : "modal-anchor",
                     data-target=isRegisterOrLogin ? false : "#modal-sign-in"
                   )= t("Log in")
-              if ctx.pathWithoutLocale !== '/register'
-                li.nav-item.ml-0.ml-xl-3
-                  a.btn.btn-link.d-block.d-lg-none.text-left.font-weight-bold.text-success(
-                    href=l("/register"),
-                    data-toggle=isRegisterOrLogin ? false : "modal-anchor",
-                    data-target=isRegisterOrLogin ? false : "#modal-sign-up"
-                  )
-                    = t("Signup")
-                  a.btn.btn-success.text-left.text-uppercase.font-weight-bold.d-none.d-lg-block(
-                    href=l("/register"),
-                    data-toggle=isRegisterOrLogin ? false : "modal-anchor",
-                    data-target=isRegisterOrLogin ? false : "#modal-sign-up"
-                  )
-                    = t("Signup")
 if user
   noscript
     .alert.alert-danger.font-weight-bold.text-center.border-top-0.border-left-0.border-right-0.rounded-0.small!= t("Please enable JavaScript to use our website.")
