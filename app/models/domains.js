@@ -143,7 +143,6 @@ const Token = new mongoose.Schema({
   },
   description: {
     type: String,
-    select: false,
     maxlength: 150,
     trim: true
   },
@@ -162,7 +161,7 @@ const Token = new mongoose.Schema({
 Token.plugin(mongooseCommonPlugin, {
   object: 'token',
   omitCommonFields: false,
-  omitExtraFields: ['_id', '__v', 'description', 'salt', 'hash'],
+  omitExtraFields: ['_id', '__v', 'salt', 'hash'],
   uniqueId: false,
   locale: false
 });
@@ -1245,7 +1244,7 @@ async function getNSRecords(domain, resolver) {
     try {
       const rootDomain = parseRootDomain(domain.name);
       if (rootDomain === domain.name) {
-        logger.debug(err);
+        // logger.debug(err);
         if (err.code === 'ENOTFOUND') {
           const error = Boom.badRequest(
             i18n.translateError('ENOTFOUND', domain.locale)
@@ -1288,7 +1287,7 @@ async function getNSRecords(domain, resolver) {
         }
       }
     } catch (err) {
-      logger.debug(err);
+      // logger.debug(err);
       if (err.code === 'ENOTFOUND') {
         const error = Boom.badRequest(
           i18n.translateError('ENOTFOUND', domain.locale)
@@ -1416,7 +1415,7 @@ async function verifySMTP(domain, resolver, purgeCache = true) {
             // Remove double whitespace
             .replace(/\s\s+/g, ' ')
             .trim(); // Join chunks together
-          if (line === string_) {
+          if (line === string_ || line === string_.slice(0, -1)) {
             dkim = true;
             break;
           }
@@ -1764,7 +1763,7 @@ async function getVerificationResults(domain, resolver, purgeCache = false) {
           errors.push(...result.errors);
         }
       } catch (err) {
-        logger.debug(err);
+        // logger.debug(err);
         if (err.code === 'ENOTFOUND') {
           const error = Boom.badRequest(
             i18n.translateError('ENOTFOUND', domain.locale)

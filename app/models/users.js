@@ -1009,9 +1009,9 @@ Users.pre('save', function (next) {
 Users.post('save', async (user, next) => {
   if (!user._isNew) return next();
 
-  logger.info('user created', {
-    user: user.toObject()
-  });
+  // logger.info('user created', {
+  //   user: user.toObject()
+  // });
 
   // return early if possible
   if (!user[fields.ubuntuUsername] || !user[fields.ubuntuProfileID])
@@ -1064,7 +1064,7 @@ Users.post('save', async (user, next) => {
       template: 'alert',
       message: {
         to,
-        bcc: config.email.message.from,
+        // bcc: config.email.message.from,
         subject: `🎉 ~${
           user[fields.ubuntuUsername]
         } signed into Forward Email with Launchpad!`

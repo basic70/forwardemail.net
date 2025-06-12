@@ -51,6 +51,10 @@
   * [Create domain](#create-domain)
   * [Retrieve domain](#retrieve-domain)
   * [Verify domain records](#verify-domain-records)
+  * [Verify domain SMTP records](#verify-domain-smtp-records)
+  * [List domain-wide catch-all passwords](#list-domain-wide-catch-all-passwords)
+  * [Create domain-wide catch-all password](#create-domain-wide-catch-all-password)
+  * [Remove domain-wide catch-all password](#remove-domain-wide-catch-all-password)
   * [Update domain](#update-domain)
   * [Delete domain](#delete-domain)
 * [Invites](#invites)
@@ -635,6 +639,55 @@ curl BASE_URI/v1/domains/DOMAIN_NAME/verify-records \
   -u API_TOKEN:
 ```
 
+### Verify domain SMTP records
+
+> `GET /v1/domains/DOMAIN_NAME/verify-smtp`
+
+> Example Request:
+
+```sh
+curl BASE_URI/v1/domains/DOMAIN_NAME/verify-smtp \
+  -u API_TOKEN:
+```
+
+### List domain-wide catch-all passwords
+
+> `GET /v1/domains/DOMAIN_NAME/catch-all-passwords`
+
+> Example Request:
+
+```sh
+curl BASE_URI/v1/domains/DOMAIN_NAME/catch-all-passwords \
+  -u API_TOKEN:
+```
+
+### Create domain-wide catch-all password
+
+> `POST /v1/domains/DOMAIN_NAME/catch-all-passwords`
+
+| Body Parameter | Required | Type   | Description                                                                                                                                                                                                               |
+| -------------- | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new_password` | No       | String | Your custom new password to use for the domain-wide catch-all password.  Note that you can leave this blank or missing altogether from your API request body if you wish to get a randomly generated and strong password. |
+| `description`  | No       | String | Description for organization purposes only.                                                                                                                                                                               |
+
+> Example Request:
+
+```sh
+curl BASE_URL/v1/domains/DOMAIN_NAME/catch-all-passwords \
+  -u API_TOKEN:
+```
+
+### Remove domain-wide catch-all password
+
+> `DELETE /v1/domains/DOMAIN_NAME/catch-all-passwords/:token_id`
+
+> Example Request:
+
+```sh
+curl -X DELETE BASE_URI/v1/domains/:domain_name/catch-all-passwords/:token_id \
+  -u API_TOKEN:
+```
+
 ### Update domain
 
 > `PUT /v1/domains/DOMAIN_NAME`
@@ -809,7 +862,7 @@ curl BASE_URI/v1/domains/DOMAIN_NAME/aliases?pagination=true \
 | `is_enabled`                    | No       | Boolean                                | Whether to enable or disable this alias (if disabled, emails will be routed nowhere but return successful status codes). If a value is passed, it is converted to a boolean using [boolean](https://github.com/thenativeweb/boolean#quick-start))                                                                                                                                           |
 | `error_code_if_disabled`        | No       | Number (either `250`, `421`, or `550`) | Incoming email to this alias will reject if `is_enabled` is `false` with either `250` (quietly deliver nowhere, e.g. blackhole or `/dev/null`), `421` (soft reject; and retry for up to ~5 days) or `550` permanent failure and rejection. Defaults to `250`.                                                                                                                               |
 | `has_imap`                      | No       | Boolean                                | Whether to enable or disable IMAP storage for this alias (if disabled, then inbound emails received will not get stored to [IMAP storage](/blog/docs/best-quantum-safe-encrypted-email-service).  If a value is passed, it is converted to a boolean using [boolean](https://github.com/thenativeweb/boolean#quick-start))                                                                  |
-| `has_pgp`                       | No       | Boolean                                | Whether to enable or disable [OpenPGP encryption](/faq#do-you-support-openpgpmime-end-to-end-encryption-e2ee-and-web-key-directory-wkd) for [IMAP/POP3/CalDAV encrypted email storage](/blog/docs/best-quantum-safe-encrypted-email-service) using the alias' `public_key`.                                                                                                                 |
+| `has_pgp`                       | No       | Boolean                                | Whether to enable or disable [OpenPGP encryption](/faq#do-you-support-openpgpmime-end-to-end-encryption-e2ee-and-web-key-directory-wkd) for [IMAP/POP3/CalDAV/CardDAV encrypted email storage](/blog/docs/best-quantum-safe-encrypted-email-service) using the alias' `public_key`.                                                                                                         |
 | `public_key`                    | No       | String                                 | OpenPGP public key in ASCII Armor format ([click here to view an example](/.well-known/openpgpkey/hu/mxqp8ogw4jfq83a58pn1wy1ccc1cx3f5.txt); e.g. GPG key for `support@forwardemail.net`). This only applies if you have `has_pgp` set to `true`. [Learn more about end-to-end encryption in our FAQ](/faq#do-you-support-openpgpmime-end-to-end-encryption-e2ee-and-web-key-directory-wkd). |
 | `max_quota`                     | No       | String                                 | Storage maximum quota for this alias. Leave blank to reset to domain current maximum quota or enter a value such as "1 GB" that will be parsed by [bytes](https://github.com/visionmedia/bytes.js).  This value can only be adjusted by domain admins.                                                                                                                                      |
 | `vacation_responder_is_enabled` | No       | Boolean                                | Whether to enable or disable an automatic vacation responder.                                                                                                                                                                                                                                                                                                                               |
@@ -861,7 +914,7 @@ curl BASE_URI/v1/domains/:domain_name/aliases/:alias_name \
 | `is_enabled`                    | No       | Boolean                                | Whether to enable or disable this alias (if disabled, emails will be routed nowhere but return successful status codes). If a value is passed, it is converted to a boolean using [boolean](https://github.com/thenativeweb/boolean#quick-start))                                                                                                                                           |
 | `error_code_if_disabled`        | No       | Number (either `250`, `421`, or `550`) | Incoming email to this alias will reject if `is_enabled` is `false` with either `250` (quietly deliver nowhere, e.g. blackhole or `/dev/null`), `421` (soft reject; and retry for up to ~5 days) or `550` permanent failure and rejection. Defaults to `250`.                                                                                                                               |
 | `has_imap`                      | No       | Boolean                                | Whether to enable or disable IMAP storage for this alias (if disabled, then inbound emails received will not get stored to [IMAP storage](/blog/docs/best-quantum-safe-encrypted-email-service).  If a value is passed, it is converted to a boolean using [boolean](https://github.com/thenativeweb/boolean#quick-start))                                                                  |
-| `has_pgp`                       | No       | Boolean                                | Whether to enable or disable [OpenPGP encryption](/faq#do-you-support-openpgpmime-end-to-end-encryption-e2ee-and-web-key-directory-wkd) for [IMAP/POP3/CalDAV encrypted email storage](/blog/docs/best-quantum-safe-encrypted-email-service) using the alias' `public_key`.                                                                                                                 |
+| `has_pgp`                       | No       | Boolean                                | Whether to enable or disable [OpenPGP encryption](/faq#do-you-support-openpgpmime-end-to-end-encryption-e2ee-and-web-key-directory-wkd) for [IMAP/POP3/CalDAV/CardDAV encrypted email storage](/blog/docs/best-quantum-safe-encrypted-email-service) using the alias' `public_key`.                                                                                                         |
 | `public_key`                    | No       | String                                 | OpenPGP public key in ASCII Armor format ([click here to view an example](/.well-known/openpgpkey/hu/mxqp8ogw4jfq83a58pn1wy1ccc1cx3f5.txt); e.g. GPG key for `support@forwardemail.net`). This only applies if you have `has_pgp` set to `true`. [Learn more about end-to-end encryption in our FAQ](/faq#do-you-support-openpgpmime-end-to-end-encryption-e2ee-and-web-key-directory-wkd). |
 | `max_quota`                     | No       | String                                 | Storage maximum quota for this alias. Leave blank to reset to domain current maximum quota or enter a value such as "1 GB" that will be parsed by [bytes](https://github.com/visionmedia/bytes.js).  This value can only be adjusted by domain admins.                                                                                                                                      |
 | `vacation_responder_is_enabled` | No       | Boolean                                | Whether to enable or disable an automatic vacation responder.                                                                                                                                                                                                                                                                                                                               |
