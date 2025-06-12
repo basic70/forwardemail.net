@@ -1,6 +1,7 @@
 services:
   web:
-    image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
+    # image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
+    image: fe-braxo
     container_name: web
     network_mode: host
     hostname: ${DOMAIN}
@@ -73,63 +74,6 @@ services:
         condition: service_started
       redis:
         condition: service_started
-
-  # https://forwardemail.net/en/faq#what-are-your-imap-server-configuration-settings
-  imap:
-    image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
-    container_name: imap
-    network_mode: host
-    hostname: imap.${DOMAIN}
-    command: ["node", "imap.js"]
-    volumes:
-      - ./sqlite-data:/mnt/${SQLITE_STORAGE_PATH}
-      - ./ssl:/app/ssl/
-      - ./.env:/app/.env
-    healthcheck:
-      test: "nc -z 127.0.0.1 993"
-      interval: 30s
-      timeout: 30s
-      retries: 3
-    restart: unless-stopped
-    extra_hosts:
-      - "${DOMAIN}:127.0.0.1"
-      - "smtp.${DOMAIN}:127.0.0.1"
-      - "sqlite.${DOMAIN}:127.0.0.1"
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      sqlite:
-        condition: service_healthy
-
-  # https://forwardemail.net/en/faq#do-you-support-pop3
-  pop3:
-    image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
-    container_name: pop3
-    network_mode: host
-    hostname: pop3.${DOMAIN}
-    command: ["node", "pop3.js"]
-    volumes:
-      - ./sqlite-data:/mnt/${SQLITE_STORAGE_PATH}
-      - ./ssl:/app/ssl/
-      - ./.env:/app/.env
-    healthcheck:
-      test: "nc -z 127.0.0.1 995"
-      interval: 30s
-      timeout: 30s
-      retries: 3
-    restart: unless-stopped
-    extra_hosts:
-      - "${DOMAIN}:127.0.0.1"
-      - "smtp.${DOMAIN}:127.0.0.1"
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      sqlite:
-        condition: service_healthy
 
   # https://forwardemail.net/en/faq#what-are-your-smtp-server-configuration-settings
   smtp:
@@ -252,7 +196,8 @@ services:
         condition: service_healthy
 
   mx:
-    image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
+    # image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
+    image: fe-braxo
     container_name: mx
     network_mode: host
     command: ["node", "mx.js"]
