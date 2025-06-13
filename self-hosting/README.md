@@ -27,6 +27,8 @@ ForwardEmail's self-hosted solution uses GitHub Actions to automatically build a
 
 > \[!NOTE]
 > There is also our [self-hosted blog](https://forwardemail.net/blog/docs/self-hosted-solution) and [self-hosted developer guide](https://forwardemail.net/self-hosted)
+>
+> And for the more broken down step-by-step versions see the [Ubuntu](https://forwardemail.net/guides/selfhosted-on-ubuntu) or [Debian](https://forwardemail.net/guides/selfhosted-on-debian) based guides.
 
 
 ## CI/CD Workflow

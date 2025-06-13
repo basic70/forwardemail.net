@@ -48,6 +48,8 @@ The architecture includes containers for:
 
 > \[!NOTE]
 > Be sure to check out our [self-hosted blog](https://forwardemail.net/blog/docs/self-hosted-solution)
+>
+> And for those interested in a more broken down step-by-step version see our [Ubuntu](https://forwardemail.net/guides/selfhosted-on-ubuntu) or [Debian](https://forwardemail.net/guides/selfhosted-on-debian) based guides.
 
 
 ## Requirements
@@ -274,9 +276,9 @@ Once configured, you should be able to send and receive email to your newly crea
 
 ## Troubleshooting
 
-#### Why doesn't this work outside of Ubuntu
+#### Why doesn't this work outside of Ubuntu and Debian
 
-We're currently looking to support Debian, MacOS and will look to others. Please open a [discussion](https://github.com/orgs/forwardemail/discussions) or contribute if you would like to see others supported.
+We're currently looking to support MacOS and will look to others. Please open a [discussion](https://github.com/orgs/forwardemail/discussions) or contribute if you would like to see others supported.
 
 #### Why is the certbot acme challenge failing
 
