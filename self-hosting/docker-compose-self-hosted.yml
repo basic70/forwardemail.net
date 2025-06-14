@@ -256,7 +256,7 @@ services:
       sqlite:
         condition: service_healthy
 
-  caldav:
+  carddav:
     image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
     container_name: carddav
     network_mode: host
