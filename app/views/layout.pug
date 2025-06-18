@@ -104,7 +104,7 @@ html.h-100.no-js(
         )
       else
         link(
-          rel="icon",
+          rel="alternate icon",
           type="image/png",
           href=manifest("img/favicon-32x32.png"),
           sizes="32x32",
@@ -112,23 +112,23 @@ html.h-100.no-js(
           crossorigin="anonymous"
         )
         link(
-          rel="icon",
+          rel="alternate icon",
           type="image/png",
           href=manifest("img/favicon-16x16.png"),
           sizes="16x16",
           integrity=manifest("img/favicon-16x16.png", "integrity"),
           crossorigin="anonymous"
         )
+        link(
+          rel="icon",
+          type="image/svg+xml",
+          href=manifest("img/favicon.svg"),
+          integrity=manifest("img/favicon.svg", "integrity"),
+          crossorigin="anonymous"
+        )
       //- href=manifest("site.webmanifest"),
       //- integrity=manifest("site.webmanifest", "integrity"),
       link(rel="manifest", href="/site.webmanifest", crossorigin="anonymous")
-      link(
-        rel="mask-icon",
-        href=manifest("img/safari-pinned-tab.svg"),
-        integrity=manifest("img/safari-pinned-tab.svg", "integrity"),
-        color=config.appColor,
-        crossorigin="anonymous"
-      )
       meta(name="apple-mobile-web-app-title", content=config.appName)
       meta(name="application-name", content=config.appName)
       meta(name="msapplication-TileColor", content=config.appColor)
