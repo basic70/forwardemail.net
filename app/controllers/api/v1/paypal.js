@@ -4,6 +4,7 @@
  */
 
 const { promisify } = require('node:util');
+const { setTimeout } = require('node:timers/promises');
 
 const Boom = require('@hapi/boom');
 const isSANB = require('is-string-and-not-blank');
@@ -184,9 +185,79 @@ async function processEvent(ctx) {
       )
         return;
 
-      const user = await Users.findOne({
+      let user = await Users.findOne({
         [config.userFields.paypalSubscriptionID]: res.body.id
       });
+
+      // attempt to find user with paypal payer id
+      if (!user) {
+        // attempt to find the user by their paypal payer id
+        user = await Users.findOne({
+          [config.userFields.paypalPayerID]: res.body.subscriber.payer_id,
+          [config.userFields.paypalSubscriptionID]: { $exists: false }
+        });
+        // save user's subscription ID if not set
+        if (user) {
+          if (!user[config.userFields.paypalSubscriptionID])
+            user[config.userFields.paypalSubscriptionID] = res.body.id;
+          await user.save();
+        }
+      }
+
+      //
+      // NOTE: if there is no user then we can assume that they didn't
+      //       get redirected post-checkout and so their subscription isn't assigned to them yet
+      //
+      if (!user) {
+        // attempt to find the user by their email address
+        user = await Users.findOne({
+          email: res.body.subscriber.email_address.toLowerCase(),
+          [config.userFields.paypalSubscriptionID]: { $exists: false },
+          [config.userFields.paypalPayerID]: { $exists: false }
+        });
+        // save user's subscription ID and payer ID to their account
+        if (user) {
+          user[config.userFields.paypalSubscriptionID] = res.body.id;
+          user[config.userFields.paypalPayerID] = res.body.subscriber.payer_id;
+          await user.save();
+        }
+      }
+
+      // if no user yet, then wait 5m since the user could still be redirecting post checkout
+      if (!user && !ctx.isProcessed) {
+        await setTimeout(ms('5m'));
+        ctx.isProcessed = true;
+        await processEvent(ctx);
+        return;
+      }
+
+      if (!user) {
+        //
+        // NOTE: cancel and refund and email subscriber email address and CC admins
+        //
+        if (res.body.status === 'ACTIVE') {
+          try {
+            const agent = await paypalAgent();
+            await agent.post(`/v1/billing/subscriptions/${res.body.id}/cancel`);
+          } catch (err) {
+            ctx.logger.error(err);
+          }
+        }
+
+        emailHelper({
+          template: 'alert',
+          message: {
+            to: config.email.message.from,
+            cc: res.body.subscriber.email_address.toLowerCase(),
+            subject: `PayPal Subscription Issue (${res.body.id})`
+          },
+          locals: {
+            message: `Your PayPal subscription could not be synchronized properly since your PayPal email address differs from your Forward Email account.  Please try to checkout again if necessary with PayPal and ensure that you proceed to our website after you have completed your PayPal transaction.  Visit <a target="_blank" rel="noopener noreferrer" href="${config.urls.web}/my-account/billing">${config.urls.web}/my-account/billing</a> to get your latest billing information.  We will automatically process your refund.`
+          }
+        })
+          .then()
+          .catch((err) => ctx.logger.fatal(err));
+      }
 
       // there will not be a user found if the user cancelled from our site
       // because we have logic to unset paypal subscription id from the user obj
