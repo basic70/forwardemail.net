@@ -20,7 +20,6 @@ const Redis = require('@ladjs/redis');
 const archiver = require('archiver');
 const archiverZipEncrypted = require('archiver-zip-encrypted');
 const bytes = require('@forwardemail/bytes');
-const checkDiskSpace = require('check-disk-space').default;
 const dashify = require('dashify');
 const getStream = require('get-stream');
 const hasha = require('hasha');
@@ -50,6 +49,7 @@ const Messages = require('#models/messages');
 const Indexer = require('#helpers/indexer');
 const ServerShutdownError = require('#helpers/server-shutdown-error');
 const asctime = require('#helpers/asctime');
+const checkDiskSpace = require('#helpers/check-disk-space');
 const closeDatabase = require('#helpers/close-database');
 const config = require('#config');
 const email = require('#helpers/email');
@@ -468,7 +468,6 @@ async function backup(payload) {
       id: payload.session.user.alias_id,
       storage_location: payload.session.user.storage_location
     });
-    const diskSpace = await checkDiskSpace(storagePath);
     tmp = path.join(
       path.dirname(storagePath),
       `${payload.id}-backup.${extension}`
@@ -487,6 +486,7 @@ async function backup(payload) {
     // we calculate size of db x 2 (backup + tarball)
     const spaceRequired = stats.size * 2;
 
+    const diskSpace = await checkDiskSpace(storagePath);
     if (diskSpace.free < spaceRequired)
       throw new TypeError(
         `Needed ${bytes(spaceRequired)} but only ${bytes(

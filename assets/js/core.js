@@ -4,11 +4,11 @@
  */
 
 const $ = require('jquery');
+const Apex = require('apexcharts');
 const Clipboard = require('clipboard');
 const Lazyload = require('lazyload');
 const Popper = require('popper.js');
 const Swal = require('sweetalert2/dist/sweetalert2.js');
-const Typed = require('typed.js');
 const URLParse = require('url-parse');
 const base64url = require('base64url');
 const lazyframe = require('lazyframe');
@@ -25,6 +25,25 @@ function toArrayBuffer(buffer) {
   );
 }
 
+function getRandomHexColor() {
+  // Generate a random integer between 0 and 16777215 (which is 0xFFFFFF in decimal).
+  // This represents all possible 24-bit RGB colors.
+  const randomNum = Math.floor(Math.random() * 16777215);
+
+  // Convert the integer to a hexadecimal string.
+  // toString(16) converts a number to a hexadecimal string.
+  let hexColor = randomNum.toString(16);
+
+  // Pad the hexadecimal string with leading zeros if necessary
+  // to ensure it is always 6 characters long.
+  while (hexColor.length < 6) {
+    hexColor = '0' + hexColor;
+  }
+
+  // Prepend '#' to form a valid CSS hex color code.
+  return '#' + hexColor;
+}
+
 // load jQuery and Bootstrap
 // <https://stackoverflow.com/a/34340392>
 // <https://github.com/FezVrasta/popper.js/issues/287#issuecomment-321887784>
@@ -33,9 +52,6 @@ window.jQuery = $;
 
 // required for bootstrap (we could use the bundle but this is cleaner)
 window.Popper = Popper;
-
-// bind Typed to window namespace for specific pages
-window.Typed = Typed;
 
 require('bootstrap');
 
@@ -56,7 +72,7 @@ const $body = $('body');
 
 const {
   ajaxForm,
-  changeHashOnScroll,
+  // changeHashOnScroll,
   clipboard,
   confirmPrompt,
   customFileInput,
@@ -65,7 +81,7 @@ const {
   handleHashChange,
   handleHashOnLoad,
   modalAnchor,
-  resizeNavbarPadding,
+  // resizeNavbarPadding,
   returnTo,
   jumpTo
 } = require('@ladjs/assets');
@@ -75,9 +91,9 @@ const logger = require('./logger');
 const sendRequest = require('./send-request');
 
 // Resize navbar padding on load, window resize, and navbar collapse/show
-$(window).on('load', () => {
-  resizeNavbarPadding($);
-});
+// $(window).on('load', () => {
+//  resizeNavbarPadding($);
+// });
 
 // highlight.js
 // const hljs = require('highlight.js');
@@ -92,12 +108,12 @@ flash();
 // Handle hashes when page loads
 // <http://stackoverflow.com/a/29853395>
 handleHashOnLoad();
-$(window).on('resize.resizeNavbarPadding', () => {
-  resizeNavbarPadding($);
-});
-$('.navbar-collapse').on('hidden.bs.collapse shown.bs.collapse', () => {
-  resizeNavbarPadding($);
-});
+// $(window).on('resize.resizeNavbarPadding', () => {
+//   resizeNavbarPadding($);
+// });
+// $('.navbar-collapse').on('hidden.bs.collapse shown.bs.collapse', () => {
+//   resizeNavbarPadding($);
+// });
 
 // Add calc to min-vh-100
 const $navbarFixedTop = $('.navbar.fixed-top');
@@ -225,10 +241,15 @@ renderDayjs();
 // Handle modals on anchor tags with data-target specified (preserve href)
 $('a[data-toggle="modal-anchor"]').on('click.modalAnchor', modalAnchor);
 
+//
+// NOTE: we completely disabled this since it's kind of buggy and may be
+//       unwanted by the user for their URL to be changing
+//
 // Adjust the hash of the page as you scroll down
 // (e.g. if you scroll past a section "Section A" to "Section B"
 // then the URL bar will update to #section-b
-$(window).on('scroll.changeHashOnScroll', debounce(changeHashOnScroll, 250));
+// if (!navigator || !navigator.userAgentData || !navigator.userAgentData.mobile)
+//   $(window).on('scroll.changeHashOnScroll', debounce(changeHashOnScroll, 1000));
 
 // Handle hash change when user clicks on links
 $body.on('click.handleHashChange', "a[href^='#']", handleHashChange);
@@ -507,7 +528,6 @@ if ($btnPrint.length > 0)
   });
 
 const $nav = $('.navbar.fixed-top');
-const el = document.querySelector('#freddy');
 
 function navbarScroll() {
   if (
@@ -522,17 +542,18 @@ function navbarScroll() {
       .addClass('text-dark')
       .removeClass('text-white');
   } else {
+    const isTextWhiteRequired = $nav.hasClass('text-white-required');
     $nav
-      .addClass('text-white')
+      .addClass(isTextWhiteRequired ? 'text-white' : '')
       .removeClass('bg-white navbar-themed bg-themed border-bottom');
     $nav
       .find('.navbar-toggler')
-      .addClass('text-white')
+      .addClass(isTextWhiteRequired ? 'text-white' : '')
       .removeClass('text-dark');
   }
 }
 
-if (el && $nav.length > 0) {
+if ($nav.length > 0) {
   navbarScroll();
   $(window).scroll(debounce(navbarScroll, 125));
   $('#navbar-header')
@@ -768,6 +789,265 @@ if (window.PublicKeyCredential) {
 //
 // update TTI every minute
 //
+let ttiChart;
+
+// <https://stackoverflow.com/a/58787671>
+// function omit(obj, ...keys) {
+//   const keysToRemove = new Set(keys.flat()); // flatten the props, and convert to a Set
+//   return Object.fromEntries(
+//     // convert the entries back to object
+//     Object.entries(obj) // convert the object to entries
+//       .filter(([k]) => !keysToRemove.has(k)) // remove entries with keys that exist in the Set
+//   );
+// }
+
+function getProviderColor(providerName) {
+  let color;
+
+  switch (providerName) {
+    case 'Forward Email': {
+      color = '#00FF00'; // green so it sticks out vs. '#0066ff';
+      break;
+    }
+
+    case 'Gmail': {
+      color = '#EA4335';
+      break;
+    }
+
+    case 'Apple iCloud': {
+      color = '#4084F4';
+      break;
+    }
+
+    case 'Fastmail': {
+      color = '#333E48';
+      break;
+    }
+
+    case 'Yahoo/AOL': {
+      color = '#410093';
+      break;
+    }
+
+    case 'Outlook/Hotmail': {
+      color = '#0078d4';
+      break;
+    }
+
+    default: {
+      color = getRandomHexColor();
+    }
+  }
+
+  return color;
+}
+
+function createTTIChartOptions(data) {
+  // Create series for each provider (averaged direct + forwarding)
+  const providerData = new Map();
+
+  // Process data to create averaged series for each provider
+  for (const item of data) {
+    const timestamp = new Date(item.created_at).getTime();
+
+    for (const provider of item.providers) {
+      if (!providerData.has(provider.name)) {
+        providerData.set(provider.name, []);
+      }
+
+      // Calculate average of direct and forwarding for this provider at this timestamp
+      const directMs = provider.directMs || 0;
+      const forwardingMs = provider.forwardingMs || 0;
+
+      // Only add data point if we have at least one valid measurement
+      if (directMs > 0 || forwardingMs > 0) {
+        let averageMs;
+        if (directMs > 0 && forwardingMs > 0) {
+          // Both values available, take average
+          averageMs = (directMs + forwardingMs) / 2;
+        } else {
+          // Only one value available, use that
+          averageMs = directMs > 0 ? directMs : forwardingMs;
+        }
+
+        providerData
+          .get(provider.name)
+          .push([timestamp, Math.round(averageMs)]);
+      }
+    }
+  }
+
+  // Convert to Apex series format and assign colors
+  const series = [];
+  const colors = [];
+
+  for (const [providerName, data] of providerData) {
+    if (data.length > 0) {
+      // Sort data by timestamp
+      data.sort((a, b) => a[0] - b[0]);
+      series.push({
+        name: providerName,
+        data
+      });
+
+      colors.push(getProviderColor(providerName));
+    }
+  }
+
+  const { timeZone } = new Intl.DateTimeFormat().resolvedOptions();
+
+  return {
+    series,
+    chart: {
+      type: 'line',
+      height: 500,
+      background: 'transparent',
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: true,
+          zoom: true,
+          zoomin: true,
+          zoomout: true,
+          pan: true,
+          reset: true
+        }
+      },
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 800
+      }
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 2.5, // Slightly thicker since we have fewer lines
+      opacity: 0.9
+    },
+    markers: {
+      size: 0,
+      hover: {
+        size: 5
+      }
+    },
+    colors, // Use our custom colors
+    xaxis: {
+      type: 'datetime',
+      labels: {
+        format: 'h TT',
+        datetimeUTC: false,
+        timezone: timeZone,
+        style: {
+          fontSize: '11px'
+        }
+      },
+      title: {
+        text: 'Time (24 Hours)',
+        style: {
+          fontSize: '13px',
+          fontWeight: 600
+        }
+      },
+      // we want to make it readable so only show
+      // 2 tick each hour = 48
+      tickAmount: 48
+    },
+    yaxis: {
+      title: {
+        text: 'Average Delivery Time',
+        style: {
+          fontSize: '13px',
+          fontWeight: 600
+        }
+      },
+      labels: {
+        formatter(value) {
+          if (value === 0) return 'N/A';
+          if (value >= 1000) return (value / 1000).toFixed(1) + 's';
+          return Math.round(value) + 'ms';
+        },
+        style: {
+          fontSize: '11px'
+        }
+      }
+    },
+    tooltip: {
+      x: {
+        format: 'dd MMM yyyy HH:mm'
+      },
+      y: {
+        formatter(value) {
+          if (value === 0) return 'N/A';
+          if (value >= 1000) return (value / 1000).toFixed(2) + 's';
+          return Math.round(value) + 'ms';
+        }
+      },
+      style: {
+        fontSize: '12px'
+      }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'center',
+      floating: false,
+      offsetY: 10,
+      itemMargin: {
+        horizontal: 15,
+        vertical: 6
+      },
+      fontSize: '12px',
+      fontWeight: 500,
+      markers: {
+        width: 10,
+        height: 10
+      }
+    },
+    grid: {
+      borderColor: '#e7e7e7',
+      strokeDashArray: 2,
+      opacity: 0.4,
+      xaxis: {
+        lines: {
+          show: true
+        }
+      },
+      yaxis: {
+        lines: {
+          show: true
+        }
+      }
+    },
+    theme: {
+      mode:
+        window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+    }
+  };
+}
+
+function initializeTTIChart() {
+  const $chartElement = $('#tti-timeline-chart');
+  const $chartData = $('#chart-data');
+
+  if ($chartElement.length > 0 && $chartData.length > 0) {
+    try {
+      const chartData = $chartData.data('json');
+      if (chartData && chartData.length > 0) {
+        const chartOptions = createTTIChartOptions(chartData);
+        ttiChart = new Apex($chartElement.get(0), chartOptions);
+        $chartElement.empty();
+        ttiChart.render();
+      }
+    } catch (err) {
+      logger.error('Error initializing TTI chart:', err);
+    }
+  }
+}
+
 async function tti() {
   const $tti = $('#tti');
   if ($tti.length === 0) return;
@@ -781,11 +1061,17 @@ async function tti() {
       .timeout(1000 * 30)
       .retry(3)
       .send();
+
+    // Update the TTI HTML content
     $tti.html($(res.text).html());
     renderDayjs();
+
+    // Initialize chart after HTML update (in case the chart container was updated)
+    initializeTTIChart();
+
     setTimeout(async function () {
       await tti();
-    }, 30000);
+    }, 60000);
   } catch (err) {
     logger.error(err);
   }
@@ -794,6 +1080,38 @@ async function tti() {
 setTimeout(() => {
   tti();
 }, 500);
+
+// Initialize TTI chart on page load
+$(document).ready(function () {
+  initializeTTIChart();
+});
+
+// Handle theme changes for TTI chart
+function changeTTIChartTheme() {
+  if (ttiChart) {
+    // set theme to light or dark
+    if (
+      window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+    ) {
+      ttiChart.updateOptions({
+        theme: { mode: 'dark' }
+      });
+    } else {
+      ttiChart.updateOptions({
+        theme: { mode: 'light' }
+      });
+    }
+  }
+}
+
+window
+  .matchMedia('(prefers-color-scheme: dark)')
+  .addEventListener('change', changeTTIChartTheme);
+
+window
+  .matchMedia('(prefers-color-scheme: light)')
+  .addEventListener('change', changeTTIChartTheme);
 
 // Avoid CSP issues with inline styling for widths on progress bars
 $('[data-width]').each(function () {

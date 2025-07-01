@@ -12,7 +12,6 @@ const { randomUUID } = require('node:crypto');
 const { Headers, Splitter, Joiner } = require('mailsplit');
 
 const bytes = require('@forwardemail/bytes');
-const checkDiskSpace = require('check-disk-space').default;
 const dayjs = require('dayjs-with-plugins');
 const getStream = require('get-stream');
 const intoStream = require('into-stream');
@@ -36,6 +35,7 @@ const Domains = require('#models/domains');
 const SMTPError = require('#helpers/smtp-error');
 const TemporaryMessages = require('#models/temporary-messages');
 const config = require('#config');
+const checkDiskSpace = require('#helpers/check-disk-space');
 const email = require('#helpers/email');
 const encryptMessage = require('#helpers/encrypt-message');
 const env = require('#config/env');
@@ -1301,7 +1301,6 @@ async function parsePayload(data, ws) {
           id: payload.session.user.alias_id,
           storage_location: payload.session.user.storage_location
         });
-        const diskSpace = await checkDiskSpace(storagePath);
 
         const maxQuotaPerAlias = await Domains.getMaxQuota(
           payload.session.user.domain_id,
@@ -1311,6 +1310,7 @@ async function parsePayload(data, ws) {
         // slight 2x overhead for backups
         const spaceRequired = maxQuotaPerAlias * 2;
 
+        const diskSpace = await checkDiskSpace(storagePath);
         if (diskSpace.free < spaceRequired)
           throw new TypeError(
             `Needed ${bytes(spaceRequired)} but only ${bytes(
@@ -1561,7 +1561,7 @@ async function parsePayload(data, ws) {
           id: payload.session.user.alias_id,
           storage_location: payload.session.user.storage_location
         });
-        const diskSpace = await checkDiskSpace(storagePath);
+
         const maxQuotaPerAlias = await Domains.getMaxQuota(
           payload.session.user.domain_id,
           payload.session.user.alias_id
@@ -1586,6 +1586,7 @@ async function parsePayload(data, ws) {
           stats && stats.size > 0 ? stats.size * 2 : 0
         );
 
+        const diskSpace = await checkDiskSpace(storagePath);
         if (diskSpace.free < spaceRequired)
           throw new TypeError(
             `Needed ${bytes(spaceRequired)} but only ${bytes(
@@ -1661,7 +1662,6 @@ async function parsePayload(data, ws) {
           id: payload.session.user.alias_id,
           storage_location: payload.session.user.storage_location
         });
-        const diskSpace = await checkDiskSpace(storagePath);
 
         // slight 2x overhead for backups
         const maxQuotaPerAlias = await Domains.getMaxQuota(
@@ -1670,6 +1670,7 @@ async function parsePayload(data, ws) {
         );
         const spaceRequired = maxQuotaPerAlias * 2;
 
+        const diskSpace = await checkDiskSpace(storagePath);
         if (config.env !== 'development' && diskSpace.free < spaceRequired)
           throw new TypeError(
             `Needed ${bytes(spaceRequired)} but only ${bytes(
