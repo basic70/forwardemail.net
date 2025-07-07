@@ -18,6 +18,7 @@ const emailHelper = require('#helpers/email');
 const env = require('#config/env');
 const { Users, Payments } = require('#models');
 const { paypalAgent, paypal } = require('#helpers/paypal');
+const { paypalAgentLegacy } = require('#helpers/paypal-legacy');
 const syncPayPalSubscriptionPaymentsByUser = require('#helpers/sync-paypal-subscription-payments-by-user');
 const syncPayPalOrderPaymentByPaymentId = require('#helpers/sync-paypal-order-payment-by-payment-id');
 
@@ -34,14 +35,6 @@ async function processEvent(ctx) {
       // body.resource.disputed_transactions = [
       //   { seller_transaction_id: '...', invoice_number: 'optional' }
       // ]
-
-      // accept claim
-      const agent = await paypalAgent();
-      await agent
-        .post(`/v1/customer/disputes/${body.resource.dispute_id}/accept-claim`)
-        .send({
-          note: 'Full refund to the customer.'
-        });
 
       if (
         !_.isArray(body.resource.disputed_transactions) ||
@@ -66,6 +59,16 @@ async function processEvent(ctx) {
       const payment = await Payments.findOne({ $or });
 
       if (!payment) throw new Error('Payment does not exist');
+
+      // accept claim using appropriate agent based on payment legacy status
+      const agent = payment.is_legacy_paypal
+        ? await paypalAgentLegacy()
+        : await paypalAgent();
+      await agent
+        .post(`/v1/customer/disputes/${body.resource.dispute_id}/accept-claim`)
+        .send({
+          note: 'Full refund to the customer.'
+        });
 
       const user = await Users.findById(payment.user);
       if (!user) throw new Error('User did not exist for customer');
@@ -188,21 +191,6 @@ async function processEvent(ctx) {
       let user = await Users.findOne({
         [config.userFields.paypalSubscriptionID]: res.body.id
       });
-
-      // attempt to find user with paypal payer id
-      if (!user) {
-        // attempt to find the user by their paypal payer id
-        user = await Users.findOne({
-          [config.userFields.paypalPayerID]: res.body.subscriber.payer_id,
-          [config.userFields.paypalSubscriptionID]: { $exists: false }
-        });
-        // save user's subscription ID if not set
-        if (user) {
-          if (!user[config.userFields.paypalSubscriptionID])
-            user[config.userFields.paypalSubscriptionID] = res.body.id;
-          await user.save();
-        }
-      }
 
       //
       // NOTE: if there is no user then we can assume that they didn't
@@ -564,14 +552,26 @@ async function processEvent(ctx) {
 // <https://developer.paypal.com/docs/api-basics/notifications/webhooks/>
 
 async function webhook(ctx) {
-  const response = await promisify(
-    paypal.notification.webhookEvent.verify,
-    paypal.notification.webhookEvent
-  )(ctx.request.headers, ctx.request.body, env.PAYPAL_WEBHOOK_ID);
+  let response;
+  try {
+    response = await promisify(
+      paypal.notification.webhookEvent.verify,
+      paypal.notification.webhookEvent
+    )(ctx.request.headers, ctx.request.body, env.PAYPAL_WEBHOOK_ID);
 
-  // throw an error if something was wrong
-  if (!_.isObject(response) || response.verification_status !== 'SUCCESS')
-    throw Boom.badRequest(ctx.translateError('INVALID_PAYPAL_SIGNATURE'));
+    // throw an error if something was wrong
+    if (!_.isObject(response) || response.verification_status !== 'SUCCESS')
+      throw Boom.badRequest(ctx.translateError('INVALID_PAYPAL_SIGNATURE'));
+  } catch {
+    response = await promisify(
+      paypal.notification.webhookEvent.verify,
+      paypal.notification.webhookEvent
+    )(ctx.request.headers, ctx.request.body, env.PAYPAL_WEBHOOK_ID_LEGACY);
+
+    // throw an error if something was wrong
+    if (!_.isObject(response) || response.verification_status !== 'SUCCESS')
+      throw Boom.badRequest(ctx.translateError('INVALID_PAYPAL_SIGNATURE'));
+  }
 
   // return a response to acknowledge receipt of the event
   ctx.body = { received: true };

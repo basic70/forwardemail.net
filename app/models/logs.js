@@ -259,13 +259,16 @@ Logs.index(
   { default_language: 'english' }
 );
 
+// Restore regular index for err.isCodeBug to support $or queries efficiently
+Logs.index({ 'err.isCodeBug': 1 });
+
 //
 // create sparse (now known as "partial" indices) on common log queries
 // <https://www.mongodb.com/docs/manual/core/index-partial/#comparison-with-sparse-indexes>
 //
 const PARTIAL_INDICES = [
   'email', // conditionally exists if related to a given outbound email
-  'err.isCodeBug',
+  // 'err.isCodeBug',
   'err.responseCode',
   'meta.is_http', // used for search
   'meta.level',
@@ -330,6 +333,39 @@ for (const index of PARTIAL_INDICES) {
     }
   );
 }
+
+// For non-admin users with common query patterns - optimized for $or queries
+Logs.index({
+  user: 1,
+  domains: 1,
+  'err.isCodeBug': 1,
+  created_at: 1
+});
+
+// For non-admin users with bounce category filtering - optimized for $or queries
+Logs.index({
+  bounce_category: 1,
+  domains: 1,
+  user: 1,
+  'err.isCodeBug': 1
+});
+
+// Additional compound indexes to support common query patterns with $or filtering
+// For response code analysis queries
+Logs.index({
+  'err.responseCode': 1,
+  user: 1,
+  'err.isCodeBug': 1,
+  created_at: -1
+});
+
+// For domain-focused queries with date sorting
+Logs.index({
+  domains: 1,
+  user: 1,
+  'err.isCodeBug': 1,
+  created_at: -1
+});
 
 //
 // before saving a log ensure that `err` and `meta.err` are parsed
