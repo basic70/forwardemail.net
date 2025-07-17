@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+/* eslint-disable no-unreachable */
+
 // eslint-disable-next-line import/no-unassigned-import
 require('#config/env');
 
@@ -119,7 +121,7 @@ async function isUserOnNewPayPal(user) {
   for (const payment of userPayments) {
     if (payment.paypal_transaction_id) {
       // Check if this transaction exists with new PayPal agent
-      // eslint-disable-next-line no-await-in-loop
+
       const transactionWithNew = await checkPaymentWithAgent(
         payment.paypal_transaction_id,
         newAgent,
@@ -137,9 +139,15 @@ async function isUserOnNewPayPal(user) {
   return false;
 }
 
-async function migratePayments() {
+async function migrateSubscriptions() {
   try {
-    console.log('Starting PayPal legacy migration...');
+    console.log('Starting PayPal legacy subscription migration...');
+
+    // Early return for deprecated legacy PayPal agent
+    logger.debug(
+      'Legacy PayPal subscription migration is deprecated - skipping'
+    );
+    return;
 
     // Find all payments created before July 1, 2025 that need to be checked
     const paymentsToCheck = await Payments.find({
@@ -337,7 +345,7 @@ async function migratePayments() {
 (async () => {
   await setupMongoose(logger);
 
-  await migratePayments();
+  await migrateSubscriptions();
 
   process.exit(0);
 })();

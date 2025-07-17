@@ -18,14 +18,12 @@ const emailHelper = require('#helpers/email');
 const env = require('#config/env');
 const { Users, Payments } = require('#models');
 const { paypalAgent, paypal } = require('#helpers/paypal');
-const { paypalAgentLegacy } = require('#helpers/paypal-legacy');
 const syncPayPalSubscriptionPaymentsByUser = require('#helpers/sync-paypal-subscription-payments-by-user');
 const syncPayPalOrderPaymentByPaymentId = require('#helpers/sync-paypal-order-payment-by-payment-id');
 const retryPayPalRequest = require('#helpers/retry-paypal-request');
 
 const { PAYPAL_PLAN_MAPPING } = config.payments;
 
-// eslint-disable-next-line complexity
 async function processEvent(ctx) {
   const { body } = ctx.request;
 
@@ -62,9 +60,13 @@ async function processEvent(ctx) {
       if (!payment) throw new Error('Payment does not exist');
 
       // accept claim using appropriate agent based on payment legacy status
-      const agent = payment.is_legacy_paypal
-        ? await paypalAgentLegacy()
-        : await paypalAgent();
+      // Early return for deprecated legacy PayPal agent
+      if (payment.is_legacy_paypal) {
+        ctx.logger.debug('Skipping legacy PayPal agent usage - deprecated');
+        break;
+      }
+
+      const agent = await paypalAgent();
       await agent
         .post(`/v1/customer/disputes/${body.resource.dispute_id}/accept-claim`)
         .send({

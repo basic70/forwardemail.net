@@ -76,7 +76,7 @@ const REGEX_DOMAIN_WITHOUT_TLD = new RE2(new RegExp(domainWithoutTLD, 'im'));
 const REGEX_APP_NAME = new RE2(new RegExp(env.APP_NAME, 'im'));
 
 // function isArbitrary(session, headers, bodyStr) {
-// eslint-disable-next-line complexity
+
 function isArbitrary(session, headers) {
   let subject = getHeaders(headers, 'subject');
   if (!isSANB(subject)) subject = null;
@@ -156,16 +156,17 @@ function isArbitrary(session, headers) {
   //                   PPC001017
   //                   RT000542 = gift message hack
   //                              <https://www.bleepingcomputer.com/news/security/beware-paypal-new-address-feature-abused-to-send-phishing-emails/>
+  //                   RT002947 = paypal invoice spam
   //
   if (
     session.originalFromAddressRootDomain === 'paypal.com' &&
     headers.hasHeader('x-email-type-id') &&
-    ['PPC001017', 'RT000238', 'RT000542'].includes(
+    ['PPC001017', 'RT000238', 'RT000542', 'RT002947'].includes(
       headers.getFirst('x-email-type-id')
     )
   ) {
     const err = new SMTPError(
-      'Due to ongoing PayPal invoice spam, you must manually send an invoice link'
+      'Due to ongoing PayPal invoice spam, you must manually send an invoice link; See https://forwardemail.net/en/blog/docs/paypal-api-disaster-11-years-missing-features-broken-promises#the-11-year-capture-bug-disaster-1899-and-counting ;'
     );
     err.isCodeBug = true; // alert admins for inspection
     throw err;
