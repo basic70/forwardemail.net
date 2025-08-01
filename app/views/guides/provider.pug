@@ -116,6 +116,15 @@ block body
                 i.fa.fa-external-link
                 = " "
                 = t("Go to DNS settings")
+          else if !isBot(ctx.get('User-Agent'))
+            .position-absolute.w-100.text-right
+              a.badge.badge-pill.badge-primary.mt-3.mr-3.border-0(
+                href=l("/faq#table-dns-management-by-registrar"),
+                target="_blank"
+              )
+                i.fa.fa-external-link
+                = " "
+                = t("Go to DNS settings")
           h2#setup-step-1.h5.card-header.text-left.text-md-center= t("Step 1")
           .card-body
             //- TODO: render columns as the editors have on each
@@ -133,12 +142,23 @@ block body
                 br.d-block.d-md-none
                 != t(" &rarr; scroll down to <strong>Step 2</strong>")
             if provider && provider.gif
-              img.d-inline-block.img-thumbnail.mt-3(
-                src=manifest(`img/guides/${provider.gif}.gif`),
-                alt=provider.name,
+              video.d-inline-block.img-thumbnail.mt-3(
+                controls,
+                autoplay,
+                loop,
+                muted,
                 width="480",
                 height="270"
               )
+                source(
+                  src=manifest(`img/guides/${provider.gif}.webm`),
+                  type="video/webm"
+                )
+                source(
+                  src=manifest(`img/guides/${provider.gif}.mp4`),
+                  type="video/mp4"
+                )
+                = t("Your browser does not support the video tag.")
             if provider && provider.name && provider.url
               .text-center.mt-3
                 a.btn.btn-primary(
