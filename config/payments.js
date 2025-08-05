@@ -154,6 +154,23 @@ const PAYPAL_PLAN_MAPPING = {
   }
 };
 
+const PAYPAL_PLAN_MAPPING_LEGACY = {
+  enhanced_protection: {
+    '30d': process.env.PAYPAL_ENHANCED_PLAN_30D_LEGACY,
+    '60d': process.env.PAYPAL_ENHANCED_PLAN_60D_LEGACY,
+    '90d': process.env.PAYPAL_ENHANCED_PLAN_90D_LEGACY,
+    '180d': process.env.PAYPAL_ENHANCED_PLAN_180D_LEGACY,
+    '1y': process.env.PAYPAL_ENHANCED_PLAN_1Y_LEGACY
+  },
+  team: {
+    '30d': process.env.PAYPAL_TEAM_PLAN_30D_LEGACY,
+    '60d': process.env.PAYPAL_TEAM_PLAN_60D_LEGACY,
+    '90d': process.env.PAYPAL_TEAM_PLAN_90D_LEGACY,
+    '180d': process.env.PAYPAL_TEAM_PLAN_180D_LEGACY,
+    '1y': process.env.PAYPAL_TEAM_PLAN_1Y_LEGACY
+  }
+};
+
 const PAYPAL_ENDPOINT =
   env.NODE_ENV === 'production'
     ? 'https://api-m.paypal.com'
@@ -165,12 +182,20 @@ const paypalRestSdkConfig = {
   client_secret: env.PAYPAL_SECRET
 };
 
+const paypalRestSdkConfigLegacy = {
+  mode: env.NODE_ENV === 'production' ? 'live' : 'sandbox',
+  client_id: env.PAYPAL_CLIENT_ID_LEGACY,
+  client_secret: env.PAYPAL_SECRET_LEGACY
+};
+
 module.exports = {
   STRIPE_MAPPING,
   STRIPE_PRODUCTS,
   PAYMENT_DURATIONS,
   PAYPAL_MAPPING,
   PAYPAL_PLAN_MAPPING,
+  PAYPAL_PLAN_MAPPING_LEGACY,
   PAYPAL_ENDPOINT,
-  paypalRestSdkConfig
+  paypalRestSdkConfig,
+  paypalRestSdkConfigLegacy
 };

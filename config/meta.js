@@ -32,7 +32,6 @@ const {
   useCases
 } = require('#config/utilities');
 
-// eslint-disable-next-line complexity
 module.exports = function (config, isSitemap = false) {
   // in order for snapshots to be consistent we need the same date to be used
   const now =
@@ -51,8 +50,9 @@ module.exports = function (config, isSitemap = false) {
     // meta for a specific route it'd be confusing to see Home
     // in the title bar in the user's browser
     '/': [
-      'Free Email Forwarding - Custom Domain Emails',
-      'Setup encrypted email, free email forwarding, custom domains, private business email, and more with support for outbound SMTP, IMAP, and POP3. Set up free email forwarding for your custom domain in minutes.'
+      'Free Email Forwarding for Custom Domains',
+      'Get free email forwarding for your custom domain. Send & receive as you@yourdomain.com with unlimited aliases, 10GB storage & 100% open-source security.'
+      // TODO: 'img/articles/faq.webp'
     ],
     '/about': [
       'History of Forward Email',
@@ -62,9 +62,8 @@ module.exports = function (config, isSitemap = false) {
     '/press': [
       'Press & Media Kit',
       'Learn more about Forward Email for journalists and the press, and download Forward Email graphics, branding, and media kit.',
-      'img/articles/press.png'
+      'img/articles/press.webp'
     ],
-    ...(isSitemap ? [] : useCases),
     '/private-business-email': [
       'Private Business Email for Custom Domains',
       'Create your free, private, encrypted, and secure email for professional businesses, enterprises, and custom domains. Send and receive email as <span class="notranslate font-weight-bold text-nowrap">you@yourdomain.com</span>.'
@@ -77,7 +76,7 @@ module.exports = function (config, isSitemap = false) {
     '/faq': [
       'Frequently Asked Questions',
       'How to configure email for custom domain names, outbound SMTP service, and more.',
-      'img/articles/faq.png'
+      'img/articles/faq.webp'
     ],
     '/encrypt': [
       'Encrypt Plaintext TXT Record',
@@ -99,12 +98,12 @@ module.exports = function (config, isSitemap = false) {
     '/terms': [
       'Terms of Service',
       'Read our terms and conditions of use for our email forwarding service.',
-      'img/articles/terms.png'
+      'img/articles/terms.webp'
     ],
     '/gdpr': [
       'GDPR Compliance',
       'Read how our service is GDPR compliant.',
-      'img/articles/gdpr.png'
+      'img/articles/gdpr.webp'
     ],
     '/security': [
       'Security Practices',
@@ -113,17 +112,17 @@ module.exports = function (config, isSitemap = false) {
     '/dpa': [
       'Data Processing Agreement',
       'Read our data processing agreement, terms of service, and how our service is GDPR compliant.',
-      'img/articles/dpa.png'
+      'img/articles/dpa.webp'
     ],
     '/report-abuse': [
       'Report Abuse',
       'Information on how to report abuse for the general public and law enforcement.',
-      'img/articles/report-abuse.png'
+      'img/articles/report-abuse.webp'
     ],
     '/privacy': [
       'Privacy Policy',
       'Read our privacy policy for our email forwarding service.',
-      'img/articles/privacy.png'
+      'img/articles/privacy.webp'
     ],
     '/help': [
       'Help',
@@ -498,5 +497,27 @@ module.exports = function (config, isSitemap = false) {
     `Two Factor Auth ${lad}`,
     'Authenticate yourself with optional OTP to log in.'
   ];
+
+  if (isSitemap) {
+    const titleSlugs = [
+      'Free Email Forwarding',
+      'Free Email Provider',
+      'Free Email Hosting',
+      'Free Email Service',
+      'Free Email Newsletters',
+      'Free Email API',
+      'Free Email Masking',
+      'Free Email Marketing',
+      'Free Bulk Email Service',
+      'Free Mass Email Service'
+    ].map((s) => dashify(s.replace('Free', '').trim()));
+    for (const key of Object.keys(useCases)) {
+      if (titleSlugs.some((s) => key.endsWith(s))) continue;
+      meta[key] = useCases[key];
+    }
+  } else {
+    Object.assign(meta, useCases);
+  }
+
   return meta;
 };

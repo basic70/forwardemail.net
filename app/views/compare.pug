@@ -1,6 +1,6 @@
 extends layout
 
-mixin renderCard(alternative)
+mixin renderCard(alternative, i)
   .card.rounded-lg.position-relative.d-inline-block.mb-3.no-search
     .position-absolute.w-100.text-right.lead.d-none.d-xl-block
       if alternative.name === "Forward Email"
@@ -36,18 +36,6 @@ mixin renderCard(alternative)
         else
           != t('The official description from its website says, "<span class="notranslate">%s</span>".', t(alternative.description))
       .text-center
-        noscript
-          a(
-            href=manifest(alternative.img),
-            target="_blank",
-            data-toggle="lightbox",
-            data-title=alternative.name,
-            data-footer=t("Screenshot by Forward Email")
-          )
-            img.img-fluid.img-thumbnail.max-height-300px(
-              src=manifest(alternative.img),
-              alt=striptags(str)
-            )
         a(
           href=manifest(alternative.img),
           target="_blank",
@@ -55,7 +43,8 @@ mixin renderCard(alternative)
           data-title=alternative.name,
           data-footer=t("Screenshot by Forward Email")
         )
-          img.lazyload.img-fluid.img-thumbnail.max-height-300px(
+          img.img-fluid.img-thumbnail.max-height-300px(
+            loading=i <= 1 ? false : "lazy",
             src=manifest(alternative.img),
             alt=striptags(str)
           )
@@ -98,7 +87,7 @@ block append scripts
     integrity=manifest("js/ekko-lightbox.js", "integrity"),
     crossorigin="anonymous"
   )
-  if !isBot(ctx.get("User-Agent"))
+  if !isBot(ctx.get("User-Agent")) && comparison
     script(
       defer,
       src=manifest("js/bootstrap-table.js"),
@@ -124,7 +113,7 @@ block append scripts
     script(nonce=nonce)!= "function checkboxSort(a, b) { a = a === '❌' ? 0 : a === '✅' ? 1 : 0.5; b = b === '❌' ? 0 : b === '✅' ? 1 : 0.5; if (a > b) return 1; if (a < b) return -1; return 0; }"
 
 block append stylesheets
-  if !isBot(ctx.get("User-Agent"))
+  if !isBot(ctx.get("User-Agent")) && comparison
     link(
       rel="stylesheet",
       href=manifest("css/bootstrap-table.css"),
@@ -266,18 +255,6 @@ block body
                           else
                             = t("Recommended")
                     .text-center.mb-3
-                      noscript
-                        a(
-                          href=manifest(alternatives[0].img),
-                          target="_blank",
-                          data-toggle="lightbox",
-                          data-title=alternatives[0].name,
-                          data-footer=t("Screenshot by Forward Email")
-                        )
-                          img.img-fluid.img-thumbnail.max-height-300px(
-                            src=manifest(alternatives[0].img),
-                            alt=striptags(t(alternatives[0].description))
-                          )
                       a(
                         href=manifest(alternatives[0].img),
                         target="_blank",
@@ -285,7 +262,8 @@ block body
                         data-title=alternatives[0].name,
                         data-footer=t("Screenshot by Forward Email")
                       )
-                        img.lazyload.img-fluid.img-thumbnail.max-height-300px(
+                        img.img-fluid.img-thumbnail.max-height-300px(
+                          loading=i <= 1 ? false : "lazy",
                           src=manifest(alternatives[0].img),
                           alt=striptags(t(alternatives[0].description))
                         )
@@ -334,18 +312,12 @@ block body
                           target="_blank",
                           rel="noopener noreferrer"
                         )
-                          noscript
-                            img(
-                              alt=t("Hardenize Test"),
-                              width=128,
-                              height=20,
-                              src=`https://img.shields.io/badge/Hardenize_Test-${alternatives[0].hardenize_pass ? "Pass" : "Fail"}-${alternatives[0].hardenize_pass ? "green" : "red"}`
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Hardenize Test"),
                             width=128,
                             height=20,
-                            data-src=`https://img.shields.io/badge/Hardenize_Test-${alternatives[0].hardenize_pass ? "Pass" : "Fail"}-${alternatives[0].hardenize_pass ? "green" : "red"}`
+                            src=`https://img.shields.io/badge/Hardenize_Test-${alternatives[0].hardenize_pass ? "Pass" : "Fail"}-${alternatives[0].hardenize_pass ? "green" : "red"}`
                           )
 
                       //- Internet.nl Site
@@ -361,18 +333,12 @@ block body
                             - color1a = "green";
                           else if (alternatives[0].internetnl_site_value >= 80)
                             - color1a = "orange";
-                          noscript
-                            img(
-                              alt=t("Internet.nl Site Test"),
-                              width=170,
-                              height=20,
-                              src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternatives[0].internetnl_site_value}/100-${color1a}`
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Internet.nl Site Test"),
                             width=170,
                             height=20,
-                            data-src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternatives[0].internetnl_site_value}/100-${color1a}`
+                            src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternatives[0].internetnl_site_value}/100-${color1a}`
                           )
 
                       //- Internet.nl Mail
@@ -388,18 +354,12 @@ block body
                             - color2a = "green";
                           else if (alternatives[0].internetnl_mail_value >= 80)
                             - color2a = "orange";
-                          noscript
-                            img(
-                              alt=t("Internet.nl Mail Test"),
-                              width=172,
-                              height=20,
-                              src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternatives[0].internetnl_mail_value}/100-${color2a}`
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Internet.nl Mail Test"),
                             width=172,
                             height=20,
-                            data-src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternatives[0].internetnl_mail_value}/100-${color2a}`
+                            src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternatives[0].internetnl_mail_value}/100-${color2a}`
                           )
 
                       //- Mozilla Observatory
@@ -410,16 +370,10 @@ block body
                           target="_blank",
                           rel="noopener noreferrer"
                         )
-                          noscript
-                            img(
-                              alt=t("Mozilla HTTP Observatory Grade"),
-                              src=`https://img.shields.io/mozilla-observatory/grade-score/${alternatives[0].root_domain}`,
-                              width=162,
-                              height=20
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Mozilla HTTP Observatory Grade"),
-                            data-src=`https://img.shields.io/mozilla-observatory/grade-score/${alternatives[0].root_domain}`,
+                            src=`https://img.shields.io/mozilla-observatory/grade-score/${alternatives[0].root_domain}`,
                             width=162,
                             height=20
                           )
@@ -438,16 +392,10 @@ block body
                             - colora = "blue";
                           else if alternatives[0].ssl_labs.startsWith('B')
                             - colora = "orange";
-                          noscript
-                            img(
-                              alt=t("Qualys SSL Labs SSL Server Test"),
-                              src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternatives[0].ssl_labs}_Grade-${colora}`,
-                              width=164,
-                              height=20
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Qualys SSL Labs SSL Server Test"),
-                            data-src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternatives[0].ssl_labs}_Grade-${colora}`,
+                            src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternatives[0].ssl_labs}_Grade-${colora}`,
                             width=164,
                             height=20
                           )
@@ -471,18 +419,6 @@ block body
                           else
                             = t("Recommended")
                     .text-center.mb-3
-                      noscript
-                        a(
-                          href=manifest(alternatives[1].img),
-                          target="_blank",
-                          data-toggle="lightbox",
-                          data-title=alternatives[1].name,
-                          data-footer=t("Screenshot by Forward Email")
-                        )
-                          img.img-fluid.img-thumbnail.max-height-300px(
-                            src=manifest(alternatives[1].img),
-                            alt=striptags(t(alternatives[1].description))
-                          )
                       a(
                         href=manifest(alternatives[1].img),
                         target="_blank",
@@ -490,7 +426,8 @@ block body
                         data-title=alternatives[1].name,
                         data-footer=t("Screenshot by Forward Email")
                       )
-                        img.lazyload.img-fluid.img-thumbnail.max-height-300px(
+                        img.img-fluid.img-thumbnail.max-height-300px(
+                          loading=i <= 1 ? false : "lazy",
                           src=manifest(alternatives[1].img),
                           alt=striptags(t(alternatives[1].description))
                         )
@@ -539,18 +476,12 @@ block body
                           target="_blank",
                           rel="noopener noreferrer"
                         )
-                          noscript
-                            img(
-                              alt=t("Hardenize Test"),
-                              width=128,
-                              height=20,
-                              src=`https://img.shields.io/badge/Hardenize_Test-${alternatives[1].hardenize_pass ? "Pass" : "Fail"}-${alternatives[1].hardenize_pass ? "green" : "red"}`
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Hardenize Test"),
                             width=128,
                             height=20,
-                            data-src=`https://img.shields.io/badge/Hardenize_Test-${alternatives[1].hardenize_pass ? "Pass" : "Fail"}-${alternatives[1].hardenize_pass ? "green" : "red"}`
+                            src=`https://img.shields.io/badge/Hardenize_Test-${alternatives[1].hardenize_pass ? "Pass" : "Fail"}-${alternatives[1].hardenize_pass ? "green" : "red"}`
                           )
 
                       //- Internet.nl Site
@@ -566,18 +497,12 @@ block body
                             - color1 = "green";
                           else if (alternatives[1].internetnl_site_value >= 80)
                             - color1 = "orange";
-                          noscript
-                            img(
-                              alt=t("Internet.nl Site Test"),
-                              width=170,
-                              height=20,
-                              src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternatives[1].internetnl_site_value}/100-${color1}`
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Internet.nl Site Test"),
                             width=170,
                             height=20,
-                            data-src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternatives[1].internetnl_site_value}/100-${color1}`
+                            src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternatives[1].internetnl_site_value}/100-${color1}`
                           )
 
                       //- Internet.nl Mail
@@ -593,18 +518,12 @@ block body
                             - color2 = "green";
                           else if (alternatives[1].internetnl_mail_value >= 80)
                             - color2 = "orange";
-                          noscript
-                            img(
-                              alt=t("Internet.nl Mail Test"),
-                              width=172,
-                              height=20,
-                              src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternatives[1].internetnl_mail_value}/100-${color2}`
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Internet.nl Mail Test"),
                             width=172,
                             height=20,
-                            data-src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternatives[1].internetnl_mail_value}/100-${color2}`
+                            src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternatives[1].internetnl_mail_value}/100-${color2}`
                           )
 
                       //- Mozilla Observatory
@@ -615,16 +534,10 @@ block body
                           target="_blank",
                           rel="noopener noreferrer"
                         )
-                          noscript
-                            img(
-                              alt=t("Mozilla HTTP Observatory Grade"),
-                              src=`https://img.shields.io/mozilla-observatory/grade-score/${alternatives[1].root_domain}`,
-                              width=162,
-                              height=20
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Mozilla HTTP Observatory Grade"),
-                            data-src=`https://img.shields.io/mozilla-observatory/grade-score/${alternatives[1].root_domain}`,
+                            src=`https://img.shields.io/mozilla-observatory/grade-score/${alternatives[1].root_domain}`,
                             width=162,
                             height=20
                           )
@@ -643,16 +556,10 @@ block body
                             - color = "blue";
                           else if alternatives[1].ssl_labs.startsWith('B')
                             - color = "orange";
-                          noscript
-                            img(
-                              alt=t("Qualys SSL Labs SSL Server Test"),
-                              src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternatives[1].ssl_labs}_Grade-${color}`,
-                              width=164,
-                              height=20
-                            )
-                          img.lazyload(
+                          img(
+                            loading=i <= 1 ? false : "lazy",
                             alt=t("Qualys SSL Labs SSL Server Test"),
-                            data-src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternatives[1].ssl_labs}_Grade-${color}`,
+                            src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternatives[1].ssl_labs}_Grade-${color}`,
                             width=164,
                             height=20
                           )
@@ -1038,18 +945,12 @@ block body
                       target="_blank",
                       rel="noopener noreferrer"
                     )
-                      noscript
-                        img(
-                          alt=t("Hardenize Test"),
-                          width=128,
-                          height=20,
-                          src=`https://img.shields.io/badge/Hardenize_Test-${alternative.hardenize_pass ? "Pass" : "Fail"}-${alternative.hardenize_pass ? "green" : "red"}`
-                        )
-                      img.lazyload(
+                      img(
+                        loading=i <= 1 ? false : "lazy",
                         alt=t("Hardenize Test"),
                         width=128,
                         height=20,
-                        data-src=`https://img.shields.io/badge/Hardenize_Test-${alternative.hardenize_pass ? "Pass" : "Fail"}-${alternative.hardenize_pass ? "green" : "red"}`
+                        src=`https://img.shields.io/badge/Hardenize_Test-${alternative.hardenize_pass ? "Pass" : "Fail"}-${alternative.hardenize_pass ? "green" : "red"}`
                       )
 
                   //- Internet.nl Site
@@ -1065,18 +966,12 @@ block body
                         - color1 = "green";
                       else if (alternative.internetnl_site_value >= 80)
                         - color1 = "orange";
-                      noscript
-                        img(
-                          alt=t("Internet.nl Site Test"),
-                          width=170,
-                          height=20,
-                          src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternative.internetnl_site_value}/100-${color1}`
-                        )
-                      img.lazyload(
+                      img(
+                        loading=i <= 1 ? false : "lazy",
                         alt=t("Internet.nl Site Test"),
                         width=170,
                         height=20,
-                        data-src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternative.internetnl_site_value}/100-${color1}`
+                        src=`https://img.shields.io/badge/Internet.nl_Site_Test-${alternative.internetnl_site_value}/100-${color1}`
                       )
 
                   //- Internet.nl Mail
@@ -1092,18 +987,12 @@ block body
                         - color2 = "green";
                       else if (alternative.internetnl_mail_value >= 80)
                         - color2 = "orange";
-                      noscript
-                        img(
-                          alt=t("Internet.nl Mail Test"),
-                          width=172,
-                          height=20,
-                          src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternative.internetnl_mail_value}/100-${color2}`
-                        )
-                      img.lazyload(
+                      img(
+                        loading=i <= 1 ? false : "lazy",
                         alt=t("Internet.nl Mail Test"),
                         width=172,
                         height=20,
-                        data-src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternative.internetnl_mail_value}/100-${color2}`
+                        src=`https://img.shields.io/badge/Internet.nl_Mail_Test-${alternative.internetnl_mail_value}/100-${color2}`
                       )
 
                   //- Mozilla Observatory
@@ -1114,16 +1003,10 @@ block body
                       target="_blank",
                       rel="noopener noreferrer"
                     )
-                      noscript
-                        img(
-                          alt=t("Mozilla HTTP Observatory Grade"),
-                          src=`https://img.shields.io/mozilla-observatory/grade-score/${alternative.root_domain}`,
-                          width=162,
-                          height=20
-                        )
-                      img.lazyload(
+                      img(
+                        loading=i <= 1 ? false : "lazy",
                         alt=t("Mozilla HTTP Observatory Grade"),
-                        data-src=`https://img.shields.io/mozilla-observatory/grade-score/${alternative.root_domain}`,
+                        src=`https://img.shields.io/mozilla-observatory/grade-score/${alternative.root_domain}`,
                         width=162,
                         height=20
                       )
@@ -1142,16 +1025,10 @@ block body
                         - color = "blue";
                       else if alternative.ssl_labs.startsWith('B')
                         - color = "orange";
-                      noscript
-                        img(
-                          alt=t("Qualys SSL Labs SSL Server Test"),
-                          src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternative.ssl_labs}_Grade-${color}`,
-                          width=164,
-                          height=20
-                        )
-                      img.lazyload(
+                      img(
+                        loading=i <= 1 ? false : "lazy",
                         alt=t("Qualys SSL Labs SSL Server Test"),
-                        data-src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternative.ssl_labs}_Grade-${color}`,
+                        src=`https://img.shields.io/badge/Qualys_SSL_Labs-${alternative.ssl_labs}_Grade-${color}`,
                         width=164,
                         height=20
                       )
@@ -1233,14 +1110,9 @@ block body
             else
               = t("Email Service Screenshots")
       .row
-        if alternatives.length <= 2
-          each alternative in alternatives
-            .d-flex.col-md-6.mb-3.align-items-stretch
-              +renderCard(alternative)
-        else
-          .card-columns-2
-            each alternative in alternatives
-              +renderCard(alternative)
+        each alternative, i in alternatives
+          .d-flex.col-md-6.mb-3.align-items-stretch
+            +renderCard(alternative, i)
       .row.mt-3
         .col.text-center
           ul.list-unstyled
@@ -1284,19 +1156,17 @@ block body
                 = " "
                 != t('We are not affiliated, associated, authorized, endorsed by, or in any way officially connected with <span class="notranslate">%s</span>, or any of its subsidiaries or its affiliates. The name <span class="notranslate">%s</span> as well as related names, marks, emblems, and images are registered trademarks of their respective owners.', arrayJoinConjunction(externalalternatives.map((p) => p.name)), arrayJoinConjunction(externalalternatives.map((p) => p.name)))
   if !isBot(ctx.get('User-Agent'))
-    .bg-dark.text-white.py-3.d-block.overflow-hidden.no-search(
-      data-ignore-hash-change
-    )
-      .container.text-center
-        include _marketing
-        .row.mb-3
-          .col-12
-            a.text-decoration-none.pt-1.pb-4.pt-lg-4.text-uppercase.mx-auto.text-white(
-              href="#testimonials"
-            )
-              i.fa.fa-angle-double-down
-              = " "
-              = t("Testimonials")
-              = " "
-              i.fa.fa-angle-double-down
+    .d-block.overflow-hidden.no-search(data-ignore-hash-change)
+      include _marketing
+    .container.text-center
+      .row.mb-3
+        .col-12
+          a.text-decoration-none.pt-1.pb-4.pt-lg-4.text-uppercase.mx-auto.text-white(
+            href="#testimonials"
+          )
+            i.fa.fa-angle-double-down
+            = " "
+            = t("Testimonials")
+            = " "
+            i.fa.fa-angle-double-down
     include _testimonials

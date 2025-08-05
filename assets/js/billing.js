@@ -31,6 +31,7 @@ delete url.query.session_id;
 
 let button;
 
+// paypal mapping
 const PAYPAL_MAPPING = {
   enhanced_protection: {
     '30d': process.env.PAYPAL_ENHANCED_PLAN_30D,
@@ -86,6 +87,8 @@ function createPayPalSubscription(data, actions) {
 async function createPayPalOrder() {
   const body = qs.parse($formBilling.serialize());
   const response = await sendRequest(body);
+
+  console.log('response', response);
 
   // Check if any errors occurred
   if (response.err) {

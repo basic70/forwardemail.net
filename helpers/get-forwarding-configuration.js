@@ -25,7 +25,6 @@ const logger = require('#helpers/logger');
 
 const REGEX_FLAG_ENDINGS = ['/gi', '/ig', '/g', '/i', '/'];
 
-// eslint-disable-next-line complexity
 async function getForwardingConfiguration({
   verificationRecord,
   username = false,
@@ -318,7 +317,6 @@ async function getForwardingConfiguration({
     mapping: []
   };
 
-  // eslint-disable-next-line complexity
   function pushToBody(alias) {
     // alias.name = "*" (wildcard catchall) otherwise an alias
     // alias.is_enabled = "!" prefixed alias name (or !! or !!!)
@@ -521,7 +519,8 @@ async function getForwardingConfiguration({
       // "/:"
       //
       let lastIndex;
-      const hasTwoSlashes = alias.name.lastIndexOf('/') !== 0;
+      const hasTwoSlashes =
+        alias.name.lastIndexOf('/') !== alias.name.indexOf('/');
       const startsWithSlash = alias.name.startsWith('/');
       if (startsWithSlash && hasTwoSlashes) {
         for (const ending of REGEX_FLAG_ENDINGS) {

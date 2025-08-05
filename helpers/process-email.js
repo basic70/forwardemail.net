@@ -66,7 +66,7 @@ const srs = new SRS(config.srs);
 
 // `email` is an Email object from mongoose
 // `resolver` is a Tangerine instance
-// eslint-disable-next-line complexity
+
 async function processEmail({ email, port = 25, resolver, client }) {
   const meta = {
     session: createSession(email),
@@ -275,14 +275,26 @@ async function processEmail({ email, port = 25, resolver, client }) {
               const count = await client.incrby(key, 0);
               if (count > 0) return;
 
-              const stream = createBounce(email, error, message);
+              const envelope = {
+                from: `mailer-daemon@${domain.name}`,
+                to: email.envelope.from
+              };
+
+              const stream = createBounce(
+                {
+                  envelope,
+                  messageId: email.messageId,
+                  date: email.date,
+                  id: email.id
+                },
+                error,
+                message
+              );
+
               const raw = await getStream.buffer(stream);
               const bounceEmail = await Emails.queue({
                 message: {
-                  envelope: {
-                    from: email.envelope.from,
-                    to: email.envelope.from
-                  },
+                  envelope,
                   raw
                 },
                 alias,
@@ -396,7 +408,7 @@ async function processEmail({ email, port = 25, resolver, client }) {
     let feedbackId;
 
     // <https://github.com/andris9/mailsplit#events>
-    // eslint-disable-next-line complexity
+
     splitter.on('data', (data) => {
       if (data.type !== 'node' || data.root !== true) return;
       // - data.headers.get
@@ -1339,25 +1351,37 @@ async function processEmail({ email, port = 25, resolver, client }) {
         async (error) => {
           try {
             //
-            // if it was a soft bounce and within 1 hour of email's date then return early
+            // if it was a soft bounce and within 15 mins of email's date then return early
             // (we don't want to send bounces until we try 5-6x within first hour of queue)
             //
             const code = getErrorCode(error);
 
             if (
               code < 500 &&
-              Date.now() < dayjs(email.date).add(1, 'hour').toDate().getTime()
+              Date.now() <
+                dayjs(email.date).add(15, 'minutes').toDate().getTime()
             )
               return;
 
-            const stream = createBounce(email, error, message);
+            const envelope = {
+              from: `mailer-daemon@${domain.name}`,
+              to: email.envelope.from
+            };
+
+            const stream = createBounce(
+              {
+                envelope,
+                messageId: email.messageId,
+                date: email.date,
+                id: email.id
+              },
+              error,
+              message
+            );
             const raw = await getStream.buffer(stream);
             const bounceEmail = await Emails.queue({
               message: {
-                envelope: {
-                  from: email.envelope.from,
-                  to: email.envelope.from
-                },
+                envelope,
                 raw
               },
               alias,

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-$fa-font-path: "../fonts";
+$fa-font-path: "/fonts";
 // <https://github.com/stylelint/stylelint/issues/3848>
 $fontAwesomeBrands: 'Font Awesome 5 Brands';
 $fontAwesomeFree: 'Font Awesome 5 Free';
@@ -29,7 +29,7 @@ $font-family-base: $font-family-sans-serif;
 
 // $headings-font-family: Poppins, $font-family-sans-serif;
 $headings-font-family: "VC Honey", $font-family-sans-serif;
-$headings-font-weight:        700;
+$headings-font-weight:        400;
 $lead-font-weight:            400;
 //$badge-font-weight:           400;
 

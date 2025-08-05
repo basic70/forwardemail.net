@@ -10,18 +10,27 @@ require('#config/env');
 // eslint-disable-next-line import/no-unassigned-import
 require('#config/mongoose');
 
-const API = require('@ladjs/api');
 const Graceful = require('@ladjs/graceful');
 const mongoose = require('mongoose');
 const ip = require('ip');
 
-const apiConfig = require('#config/api');
-const Users = require('#models/users');
-const logger = require('#helpers/logger');
-const setupMongoose = require('#helpers/setup-mongoose');
-const monitorServer = require('#helpers/monitor-server');
+const API = require('./api-server');
 
-const api = new API(apiConfig, Users);
+const Users = require('#models/users');
+const apiConfig = require('#config/api');
+const createWebSocketAsPromised = require('#helpers/create-websocket-as-promised');
+const logger = require('#helpers/logger');
+const monitorServer = require('#helpers/monitor-server');
+const setupMongoose = require('#helpers/setup-mongoose');
+
+const api = new API(
+  {
+    ...apiConfig,
+    wsp: createWebSocketAsPromised()
+  },
+  Users
+);
+
 const graceful = new Graceful({
   mongooses: [mongoose],
   servers: [api.server],

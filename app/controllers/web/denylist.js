@@ -19,7 +19,6 @@ const { Inquiries } = require('#models');
 const parseHostFromDomainOrAddress = require('#helpers/parse-host-from-domain-or-address');
 const parseRootDomain = require('#helpers/parse-root-domain');
 
-// eslint-disable-next-line complexity
 async function validate(ctx, next) {
   //
   // ctx.request.body.q
@@ -187,7 +186,7 @@ async function validate(ctx, next) {
 //       (see user[config.userFields.hasDenylistRequests] in user model and in refund helper)
 //       (we also alert the user to the voiding of the refund policy in the view for denylist requests)
 //
-// eslint-disable-next-line complexity
+
 async function remove(ctx) {
   // we have `ctx.state.q` to work with from validate fn
   // `denylist:${ctx.state.q}`
@@ -236,7 +235,7 @@ async function remove(ctx) {
 
   // if user is on free plan then send an email
   // with link for admins to /denylist?q=ctx.state.q
-  if (ctx.state.user.group !== 'admin') {
+  if (ctx.state.user.group !== 'admin' && !ctx.state.isHardCoded) {
     //
     // if it was allowlisted domain but denylisted email
     // then we should email admins because it's either a false positive

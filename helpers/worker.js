@@ -20,7 +20,6 @@ const Redis = require('@ladjs/redis');
 const archiver = require('archiver');
 const archiverZipEncrypted = require('archiver-zip-encrypted');
 const bytes = require('@forwardemail/bytes');
-const checkDiskSpace = require('check-disk-space').default;
 const dashify = require('dashify');
 const getStream = require('get-stream');
 const hasha = require('hasha');
@@ -50,6 +49,7 @@ const Messages = require('#models/messages');
 const Indexer = require('#helpers/indexer');
 const ServerShutdownError = require('#helpers/server-shutdown-error');
 const asctime = require('#helpers/asctime');
+const checkDiskSpace = require('#helpers/check-disk-space');
 const closeDatabase = require('#helpers/close-database');
 const config = require('#config');
 const email = require('#helpers/email');
@@ -129,7 +129,6 @@ const instance = {
 // <https://github.com/artem-karpenko/archiver-zip-encrypted/>
 archiver.registerFormat('zip-encrypted', archiverZipEncrypted);
 
-// eslint-disable-next-line complexity
 async function rekey(payload) {
   if (isCancelled) throw new ServerShutdownError();
 
@@ -413,7 +412,6 @@ async function rekey(payload) {
   });
 }
 
-// eslint-disable-next-line complexity
 async function backup(payload) {
   if (isCancelled) throw new ServerShutdownError();
 
@@ -468,7 +466,6 @@ async function backup(payload) {
       id: payload.session.user.alias_id,
       storage_location: payload.session.user.storage_location
     });
-    const diskSpace = await checkDiskSpace(storagePath);
     tmp = path.join(
       path.dirname(storagePath),
       `${payload.id}-backup.${extension}`
@@ -487,6 +484,7 @@ async function backup(payload) {
     // we calculate size of db x 2 (backup + tarball)
     const spaceRequired = stats.size * 2;
 
+    const diskSpace = await checkDiskSpace(storagePath);
     if (diskSpace.free < spaceRequired)
       throw new TypeError(
         `Needed ${bytes(spaceRequired)} but only ${bytes(
@@ -718,7 +716,7 @@ async function backup(payload) {
             //
             // TODO: if we do any of the above todo's then we should mirror it for EML export too
             //
-            // eslint-disable-next-line no-await-in-loop
+
             const content = await getStream(value);
             stream.write(
               `From ${

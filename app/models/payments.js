@@ -244,6 +244,7 @@ const Payments = new mongoose.Schema({
   },
   is_apple_pay: { type: Boolean, default: false },
   is_google_pay: { type: Boolean, default: false },
+  is_legacy_paypal: { type: Boolean, default: false, index: true },
   method: {
     default: 'unknown',
     type: String,
@@ -512,6 +513,22 @@ Payments.pre('save', async function (next) {
     next(err);
   }
 });
+
+// Compound indices for optimized search performance
+Payments.index({
+  user: 1,
+  created_at: -1
+}); // For sorted pagination with user lookups
+
+Payments.index({
+  reference: 'text',
+  stripe_payment_intent_id: 'text',
+  paypal_transaction_id: 'text',
+  currency: 'text',
+  method: 'text',
+  plan: 'text',
+  kind: 'text'
+}); // For text searches across payment fields
 
 Payments.plugin(mongooseCommonPlugin, {
   object: 'payment',

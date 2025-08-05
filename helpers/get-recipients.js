@@ -26,7 +26,6 @@ const parseRootDomain = require('#helpers/parse-root-domain');
 const parseUsername = require('#helpers/parse-username');
 const { encrypt } = require('#helpers/encrypt-decrypt');
 
-// eslint-disable-next-line complexity
 async function getRecipients(session, scan) {
   const bounces = [];
   const normalized = [];
@@ -35,7 +34,7 @@ async function getRecipients(session, scan) {
   // lookup forwarding recipients recursively
   let recipients = await pMap(
     session.envelope.rcptTo,
-    // eslint-disable-next-line complexity
+
     async (to) => {
       let port = 25;
       try {
@@ -408,13 +407,14 @@ async function getRecipients(session, scan) {
                 try {
                   await isDenylisted(address, this.client, this.resolver);
                 } catch (err) {
+                  if (err.name !== 'DenylistError') throw err;
                   err.message = `The address ${
                     recipient.address
                   } is denylisted by ${
                     config.urls.web
                   } ; To request removal, you must visit ${
                     config.urls.web
-                  }/denylist?q=${encrypt(address.toLowerCase())} ;`;
+                  }/denylist?q=${encrypt(err.denylistValue)} ;`;
                   err.address = address;
                   denylistErr = err;
                 }

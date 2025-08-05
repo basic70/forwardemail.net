@@ -6,6 +6,7 @@
 const Stripe = require('stripe');
 
 const { paypalAgent } = require('./paypal');
+const logger = require('#helpers/logger');
 const env = require('#config/env');
 const { Payments } = require('#models');
 
@@ -25,6 +26,7 @@ async function refund(id) {
       payment_intent: payment.stripe_payment_intent_id
     });
     payment.amount_refunded = payment.amount;
+    payment.currency_amount_refunded = payment.currency_amount;
     await payment.save();
     return payment.toObject();
   }
@@ -34,6 +36,12 @@ async function refund(id) {
   // - paypal_transaction_id
   //
   if (payment.paypal_transaction_id) {
+    // Early return for deprecated legacy PayPal agent
+    if (payment.is_legacy_paypal) {
+      logger.debug('Skipping legacy PayPal agent usage - deprecated');
+      throw new Error('Legacy PayPal refunds are no longer supported');
+    }
+
     const agent = await paypalAgent();
     // <https://developer.paypal.com/docs/api/payments/v2/#captures_refund>
     await agent.post(

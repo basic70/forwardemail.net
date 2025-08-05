@@ -26,13 +26,14 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 // payment and the data we are getting from stripe, we do
 // not make any changes and send an alert for that payment
 function syncStripePaymentIntent(user) {
-  // eslint-disable-next-line complexity
   return async function (errorEmails, paymentIntent) {
     logger.info(`paymentIntent ${paymentIntent.id}`);
 
     const q = {
       user: user._id
     };
+
+    let stripeCharge;
 
     try {
       //
@@ -69,7 +70,7 @@ function syncStripePaymentIntent(user) {
       //       <https://github.com/stripe/stripe-node/blob/master/CHANGELOG.md#%EF%B8%8F-removed>
       //
       //
-      const [stripeCharge] = paymentIntent.charges.data;
+      [stripeCharge] = paymentIntent.charges.data;
       if (
         !stripeCharge ||
         !stripeCharge.paid ||
@@ -437,7 +438,13 @@ function syncStripePaymentIntent(user) {
       if (!existingUser) throw new Error('User does not exist');
       await existingUser.save();
     } catch (err) {
-      logger.error(err, { user });
+      // add more debug output to error log
+      err.paymentIntent = paymentIntent;
+      err.q = q;
+      err.user = user;
+      err.stripeCharge = stripeCharge;
+
+      logger.error(err);
       errorEmails.push({
         template: 'alert',
         message: {

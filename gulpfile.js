@@ -19,8 +19,8 @@ require('#config/env');
 // eslint-disable-next-line import/no-unassigned-import
 require('#config/mongoose');
 
-const Graceful = require('@ladjs/graceful');
-const Mandarin = require('mandarin');
+// const Graceful = require('@ladjs/graceful');
+// const Mandarin = require('mandarin');
 const RevAll = require('gulp-rev-all');
 const babel = require('gulp-babel');
 const browserify = require('browserify');
@@ -37,7 +37,7 @@ const getStream = require('get-stream');
 const globby = require('globby');
 const gulpRemark = require('gulp-remark');
 const gulpXo = require('gulp-xo');
-const isCI = require('is-ci');
+// const isCI = require('is-ci');
 const lr = require('gulp-livereload');
 const makeDir = require('make-dir');
 // const ms = require('ms');
@@ -72,7 +72,7 @@ const { lastRun, watch, series, parallel, src, dest } = require('gulp');
 const env = require('#config/env');
 const config = require('#config');
 const logger = require('#helpers/logger');
-const i18n = require('#helpers/i18n');
+// const i18n = require('#helpers/i18n');
 const { developerDocs } = require('#config/utilities');
 
 const PROD = config.env === 'production';
@@ -177,8 +177,10 @@ const purgeCssOptions = {
       'col-12',
       'col-6',
       'col-lg-6',
+      'col-md-3',
       'col-md-6',
       'col-md-8',
+      'col-md-9',
       'col-sm-12',
       'collapse',
       'confirm-prompt',
@@ -193,6 +195,7 @@ const purgeCssOptions = {
       'disabled',
       'dropdown-toggle',
       'fa',
+      'fa-plug',
       'fa-angle-right',
       'fa-check',
       'fa-search',
@@ -263,7 +266,6 @@ const purgeCssOptions = {
       /-themed-/,
       /^hljs/,
       /^language-/,
-      'floating-animation',
       /^progress-bar/,
       'collapse',
       'navbar-collapse',
@@ -280,7 +282,6 @@ const purgeCssOptions = {
       'fixed-top',
       'card-columns-2',
       /swal2/,
-      /^typed-/,
       'component-frame',
       // bootstrap-table icons for bs4
       'fa-minus',
@@ -291,7 +292,10 @@ const purgeCssOptions = {
       // (manually curated, see `app/views/_nav.pug`)
       'navbar-small',
       // sidebar
-      /^sidebar/
+      /^sidebar/,
+      'nav',
+      'nav-pills',
+      'flex-column'
     ])
   ]
 };
@@ -575,7 +579,7 @@ async function bundle() {
 
     // lazyload
     fs.promises.copyFile(
-      path.join(__dirname, 'node_modules', 'lazyload', 'lazyload.js'),
+      path.join(__dirname, 'node_modules', 'lazyload', 'lazyload.min.js'),
       path.join(config.buildBase, 'js', 'lazyload.js')
     ),
     // ekko-lightbox
@@ -585,7 +589,7 @@ async function bundle() {
         'node_modules',
         'ekko-lightbox',
         'dist',
-        'ekko-lightbox.js'
+        'ekko-lightbox.min.js'
       ),
       path.join(config.buildBase, 'js', 'ekko-lightbox.js')
     ),
@@ -596,7 +600,7 @@ async function bundle() {
         'node_modules',
         'bootstrap-table',
         'dist',
-        'bootstrap-table.js'
+        'bootstrap-table.min.js'
       ),
       path.join(config.buildBase, 'js', 'bootstrap-table.js')
     ),
@@ -693,6 +697,7 @@ function static() {
   }).pipe(dest(config.buildBase));
 }
 
+/*
 async function markdown() {
   const mandarin = new Mandarin({
     i18n,
@@ -707,6 +712,7 @@ async function markdown() {
   await mandarin.markdown();
   await graceful.stopRedisClients();
 }
+*/
 
 async function sri() {
   await getStream(
@@ -771,7 +777,8 @@ const build = series(
   clean,
   parallel(
     ...(TEST ? [] : [xo, remark]),
-    series(parallel(img, static, markdown, bundle, fonts, faFonts, css), sri)
+    // series(parallel(img, static, markdown, bundle, fonts, faFonts, css), sri)
+    series(parallel(img, static, bundle, fonts, faFonts, css), sri)
   )
 );
 
@@ -780,11 +787,11 @@ module.exports = {
   build,
   bundle,
   sri,
-  markdown,
+  // markdown,
   watch() {
     lr.listen(config.livereload);
     watch(['**/*.js', '!gulpfile.js', '!assets/js/**/*.js'], xo);
-    watch(Mandarin.DEFAULT_PATTERNS, markdown);
+    // watch(Mandarin.DEFAULT_PATTERNS, markdown);
     watch('assets/img/**/*', img);
     watch('assets/fonts/**/*', fonts);
     watch('assets/css/**/*.scss', css);

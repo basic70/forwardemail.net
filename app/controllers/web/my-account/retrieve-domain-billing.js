@@ -5,7 +5,6 @@
 
 const punycode = require('node:punycode');
 
-const { setTimeout } = require('node:timers/promises');
 const Boom = require('@hapi/boom');
 const Stripe = require('stripe');
 const numeral = require('numeral');
@@ -14,6 +13,7 @@ const isFQDN = require('is-fqdn');
 const isSANB = require('is-string-and-not-blank');
 const ms = require('ms');
 const pMapSeries = require('p-map-series');
+const pWaitFor = require('p-wait-for');
 const parseErr = require('parse-err');
 const safeStringify = require('fast-safe-stringify');
 const striptags = require('striptags');
@@ -26,13 +26,13 @@ const logger = require('#helpers/logger');
 const refundHelper = require('#helpers/refund');
 const { Aliases, Domains, Payments } = require('#models');
 const { paypalAgent } = require('#helpers/paypal');
+const retryPayPalRequest = require('#helpers/retry-paypal-request');
 
 const { STRIPE_MAPPING, STRIPE_PRODUCTS, PAYPAL_PLAN_MAPPING } =
   config.payments;
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
-// eslint-disable-next-line complexity
 async function retrieveDomainBilling(ctx) {
   const isAccountUpgrade =
     ctx.pathWithoutLocale === '/my-account/billing/upgrade';
@@ -990,31 +990,53 @@ async function retrieveDomainBilling(ctx) {
         transactionId = body.purchase_units[0].payments.captures[0].id;
 
       // capture the user's payment (towards the end in case something else went wrong)
+      // Use retry logic for PayPal capture operations due to infrastructure delays
       try {
-        const agent1 = await paypalAgent();
-        const response = await agent1.post(
-          `/v2/checkout/orders/${body.id}/capture`
+        await retryPayPalRequest(
+          async () => {
+            const agent1 = await paypalAgent();
+            const response = await agent1.post(
+              `/v2/checkout/orders/${body.id}/capture`
+            );
+            // parse the transaction id
+            if (response.body?.purchase_units?.[0]?.payments?.captures?.[0]?.id)
+              transactionId =
+                response.body.purchase_units[0].payments.captures[0].id;
+          },
+          {
+            retries: 3,
+            additionalStatusCodes: [404], // PayPal infrastructure delays cause 404s
+            calculateDelay: (count) => Math.round(1000 * 2 ** count) // 2s, 4s, 8s
+          }
         );
-        // parse the transaction id
-        if (response.body?.purchase_units?.[0]?.payments?.captures?.[0]?.id)
-          transactionId =
-            response.body.purchase_units[0].payments.captures[0].id;
       } catch (err) {
-        ctx.logger.warn(err);
+        ctx.logger.warn(err, {
+          paypal_order_id: body.id,
+          user_email: ctx.state.user.email,
+          retry_count: err.retryCount || 0,
+          max_retries: err.maxRetries || 0
+        });
+
+        // Only email admins for non-422 errors and include retry information
         if (!err.status || err.status !== 422) {
-          // email admins here
+          const isRetryExhausted = err.retryCount >= (err.maxRetries || 0);
           emailHelper({
             template: 'alert',
             message: {
               to: config.email.message.from,
-              subject: `Error while capturing PayPal order payment for ${ctx.state.user.email}`
+              subject: `${
+                isRetryExhausted ? 'CRITICAL: ' : ''
+              }Error while capturing PayPal order payment for ${
+                ctx.state.user.email
+              }${isRetryExhausted ? ' (Retries Exhausted)' : ''}`
             },
             locals: {
-              message: `<pre><code>${safeStringify(
-                parseErr(err),
-                null,
-                2
-              )}</code></pre>`
+              message: `<pre><code>PayPal Order ID: ${body.id}
+User Email: ${ctx.state.user.email}
+Retry Count: ${err.retryCount || 0}/${err.maxRetries || 0}
+Error Status: ${err.status || err.statusCode || 'Unknown'}
+
+${safeStringify(parseErr(err), null, 2)}</code></pre>`
             }
           })
             .then()
@@ -1224,39 +1246,42 @@ async function retrieveDomainBilling(ctx) {
             throw ctx.translateError('UNKNOWN_ERROR');
 
           //
-          // NOTE: we NEED to have this artificial delay here because
+          // NOTE: we NEED to wait for the transaction to appear because
           //       PayPal yet again has issues with their API...
           //
-          // artificial delay since it seems that PayPal doesn't
-          // instantly create transactions for a subscription
-          // - 5s was tested and was too fast
-          // - 10s was tested and was too fast
-          // - 25s was tested and worked but was too slow
-          // - and 15s was tested and worked (seemingly) reliably
-          // (if we have anything more than 15-20s it seems we may get Timeout error)
+          // Wait until the transaction appears in PayPal's system
+          // instead of using an artificial delay
           //
-          await setTimeout(ms('15s'));
-
-          // attempt to lookup the transactions
           let transactionId;
-          const agent = await paypalAgent();
-          const { body: { transactions } = {} } = await agent.get(
-            `/v1/billing/subscriptions/${
-              body.id
-            }/transactions?start_time=${dayjs()
-              .subtract(1, 'day')
-              .toDate()
-              .toISOString()}&end_time=${dayjs()
-              .add(1, 'day')
-              .toDate()
-              .toISOString()}`
-          );
+          await pWaitFor(
+            async () => {
+              const agent = await paypalAgent();
+              const { body: { transactions } = {} } = await agent.get(
+                `/v1/billing/subscriptions/${
+                  body.id
+                }/transactions?start_time=${dayjs()
+                  .subtract(1, 'day')
+                  .toDate()
+                  .toISOString()}&end_time=${dayjs()
+                  .add(1, 'day')
+                  .toDate()
+                  .toISOString()}`
+              );
 
-          if (Array.isArray(transactions) && transactions.length > 0) {
-            transactionId = transactions[0].id;
-            if (_.isDate(new Date(transactions[0].time)))
-              now = new Date(transactions[0].time);
-          }
+              if (Array.isArray(transactions) && transactions.length > 0) {
+                transactionId = transactions[0].id;
+                if (_.isDate(new Date(transactions[0].time)))
+                  now = new Date(transactions[0].time);
+                return true;
+              }
+
+              return false;
+            },
+            {
+              interval: ms('2s'),
+              timeout: ms('30s')
+            }
+          );
 
           //
           // NOTE: we don't want to re-create the payment if the paypal webhook already did

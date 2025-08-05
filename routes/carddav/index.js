@@ -13,53 +13,16 @@ const CardDAVFilterParser = require('#helpers/carddav-filter-parser');
 const Contacts = require('#models/contacts');
 const config = require('#config');
 const setupAuthSession = require('#helpers/setup-auth-session');
+const ensureDefaultAddressBook = require('#helpers/ensure-default-address-book');
 const xmlHelpers = require('#helpers/carddav-xml');
+
+const { encodeXMLEntities } = xmlHelpers;
 
 // TODO: PROPPATCH
 
 function vcf(id) {
   if (id.toLowerCase().endsWith('.vcf')) return '';
   return '.vcf';
-}
-
-async function ensureDefaultAddressBook(ctx) {
-  const count = await AddressBooks.countDocuments(
-    ctx.instance,
-    ctx.state.session,
-    {}
-  );
-  if (count > 0) return;
-  //
-  // TODO: add apple support
-  //       (e.g. does it use DEFAULT_CONTACTS_NAME or something?)
-  //
-  // if (!ctx.state.isApple) {
-  await AddressBooks.create({
-    // db virtual helper
-    instance: ctx.instance,
-    session: ctx.state.session,
-
-    // address book obj
-
-    // TODO: check how fennel does it
-    // TODO: should this be randomUUID() ?
-    address_book_id: 'default', // randomUUID()
-    // TODO: I18N_CONTACTS[ctx.locale] || ctx.translate('CONTACTS')
-    name: 'Contacts',
-    // TODO: translate this
-    description: 'Default address book',
-    color: '#0000FF', // blue
-    readonly: false,
-    synctoken: `${config.urls.web}/ns/sync-token/1`,
-    // TODO: do we need a timezone on the addressbook at all (?)
-    timezone: ctx.state.session.user.timezone || 'UTC',
-    // TODO: isn't this automatic (?)
-    // TODO: if we need to change /default here (?)
-    // TODO: fix port if 443 or 80 then don't render it (?)
-    url: `${ctx.instance.config.protocol}://${ctx.instance.config.host}:${ctx.instance.config.port}/dav/${ctx.state.session.user.email}/addressbooks/default/`,
-    // TODO: isn't this automatic (?)
-    prodId: `//forwardemail.net//carddav//EN`
-  });
 }
 
 const router = new Router();
@@ -117,7 +80,6 @@ const davRouter = new Router({
   prefix: '/dav'
 });
 
-// eslint-disable-next-line complexity
 davRouter.all('/:user/addressbooks/:addressbook/:contact(.+)', async (ctx) => {
   if (!['PROPFIND', 'GET', 'PUT', 'DELETE'].includes(ctx.method))
     throw Boom.methodNotAllowed();
@@ -357,7 +319,6 @@ davRouter.all('/:user/addressbooks/:addressbook/:contact(.+)', async (ctx) => {
   }
 });
 
-// eslint-disable-next-line complexity
 davRouter.all('/:user/addressbooks/:addressbook', async (ctx) => {
   if (!['PROPFIND', 'MKCOL', 'DELETE', 'REPORT'].includes(ctx.method))
     throw Boom.methodNotAllowed();
@@ -393,7 +354,10 @@ davRouter.all('/:user/addressbooks/:addressbook', async (ctx) => {
           propstat: [
             {
               props: [
-                { name: 'd:displayname', value: addressBook.name },
+                {
+                  name: 'd:displayname',
+                  value: encodeXMLEntities(addressBook.name)
+                },
                 {
                   name: 'd:resourcetype',
                   value: '<d:collection/><card:addressbook/>'
@@ -401,7 +365,7 @@ davRouter.all('/:user/addressbooks/:addressbook', async (ctx) => {
                 { name: 'd:sync-token', value: addressBook.synctoken },
                 {
                   name: 'card:addressbook-description',
-                  value: addressBook.description || ''
+                  value: encodeXMLEntities(addressBook.description || '')
                 },
                 {
                   name: 'card:supported-address-data',
@@ -604,7 +568,10 @@ davRouter.all('/:user/addressbooks', async (ctx) => {
           propstat: [
             {
               props: [
-                { name: 'd:displayname', value: addressBook.name },
+                {
+                  name: 'd:displayname',
+                  value: encodeXMLEntities(addressBook.name)
+                },
                 {
                   name: 'd:resourcetype',
                   value: '<d:collection/><card:addressbook/>'
@@ -612,7 +579,7 @@ davRouter.all('/:user/addressbooks', async (ctx) => {
                 { name: 'd:sync-token', value: addressBook.synctoken },
                 {
                   name: 'card:addressbook-description',
-                  value: addressBook.description || ''
+                  value: encodeXMLEntities(addressBook.description || '')
                 }
               ],
               status: '200 OK'
@@ -905,18 +872,25 @@ async function propFindPrincipal(ctx) {
         propstat: [
           {
             props: [
-              { name: 'd:displayname', value: ctx.state.session.user.username },
+              {
+                name: 'd:displayname',
+                value: encodeXMLEntities(ctx.state.session.user.username)
+              },
               {
                 name: 'd:resourcetype',
                 value: '<d:collection/><d:principal/>'
               },
               {
                 name: 'd:current-user-principal',
-                value: `<d:href>/dav/${ctx.state.session.user.username}/</d:href>`
+                value: `<d:href>/dav/${encodeXMLEntities(
+                  ctx.state.session.user.username
+                )}/</d:href>`
               },
               {
                 name: 'card:addressbook-home-set',
-                value: `<d:href>/dav/${ctx.state.session.user.username}/addressbooks/</d:href>`
+                value: `<d:href>/dav/${encodeXMLEntities(
+                  ctx.state.session.user.username
+                )}/addressbooks/</d:href>`
               }
             ],
             status: '200 OK'

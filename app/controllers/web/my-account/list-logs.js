@@ -26,7 +26,6 @@ const { Aliases, Logs } = require('#models');
 
 const SIXTY_SECONDS = ms('60s');
 
-// eslint-disable-next-line complexity
 async function listLogs(ctx) {
   //
   // NOTE: this is a safeguard since logs are sensitive
@@ -388,6 +387,26 @@ async function listLogs(ctx) {
         ]
       };
     }
+  }
+
+  //
+  // Filter out logs with err.isCodeBug=true for my-account users
+  // (all my-account users should be treated as non-admin for this filtering)
+  //
+  const codebugFilter = {
+    $or: [{ err: { $exists: false } }, { 'err.isCodeBug': { $ne: true } }]
+  };
+
+  if (query.$and) {
+    query.$and.push(codebugFilter);
+  } else if (query.$or) {
+    query = {
+      $and: [query, codebugFilter]
+    };
+  } else {
+    query = {
+      $and: [query, codebugFilter]
+    };
   }
 
   // in the future we can move this to a background job

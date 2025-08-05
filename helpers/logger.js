@@ -108,7 +108,12 @@ const REDACTED_FIELDS = new Set([
   'verification_pin',
 
   // redis object specific
-  'auth'
+  'auth',
+
+  // oauth specific
+  'google_access_token',
+  'google_refresh_token',
+  'github_access_token'
 ]);
 
 //
@@ -135,7 +140,7 @@ const IGNORED_CONTENT_TYPES = [
 // ]);
 
 // <https://github.com/cabinjs/axe/#send-logs-to-http-endpoint>
-// eslint-disable-next-line complexity
+
 async function hook(err, message, meta) {
   //
   // if it was not `error` or `fatal` then we must have the symbol set
@@ -177,6 +182,9 @@ async function hook(err, message, meta) {
   // read ECONNRESET
   if (err && err.message === 'write ECONNRESET') return;
   if (err && err.message === 'read ECONNRESET') return;
+
+  // unique hash (already exists)
+  if (err.message === 'Hash is not unique.') return;
 
   // wrapper for non-browser condition
   if (mongoose && hasMixin) {
@@ -314,7 +322,6 @@ async function hook(err, message, meta) {
 // set the silent symbol in axe to true for successful asset responses
 //
 for (const level of logger.config.levels) {
-  // eslint-disable-next-line complexity
   logger.pre(level, function (err, message, meta) {
     //
     // NOTE: we delete `err.response` from object since PayPal adds it

@@ -20,10 +20,10 @@ const { Users, Payments } = require('#models');
 const { paypalAgent, paypal } = require('#helpers/paypal');
 const syncPayPalSubscriptionPaymentsByUser = require('#helpers/sync-paypal-subscription-payments-by-user');
 const syncPayPalOrderPaymentByPaymentId = require('#helpers/sync-paypal-order-payment-by-payment-id');
+const retryPayPalRequest = require('#helpers/retry-paypal-request');
 
 const { PAYPAL_PLAN_MAPPING } = config.payments;
 
-// eslint-disable-next-line complexity
 async function processEvent(ctx) {
   const { body } = ctx.request;
 
@@ -34,14 +34,6 @@ async function processEvent(ctx) {
       // body.resource.disputed_transactions = [
       //   { seller_transaction_id: '...', invoice_number: 'optional' }
       // ]
-
-      // accept claim
-      const agent = await paypalAgent();
-      await agent
-        .post(`/v1/customer/disputes/${body.resource.dispute_id}/accept-claim`)
-        .send({
-          note: 'Full refund to the customer.'
-        });
 
       if (
         !_.isArray(body.resource.disputed_transactions) ||
@@ -66,6 +58,20 @@ async function processEvent(ctx) {
       const payment = await Payments.findOne({ $or });
 
       if (!payment) throw new Error('Payment does not exist');
+
+      // accept claim using appropriate agent based on payment legacy status
+      // Early return for deprecated legacy PayPal agent
+      if (payment.is_legacy_paypal) {
+        ctx.logger.debug('Skipping legacy PayPal agent usage - deprecated');
+        break;
+      }
+
+      const agent = await paypalAgent();
+      await agent
+        .post(`/v1/customer/disputes/${body.resource.dispute_id}/accept-claim`)
+        .send({
+          note: 'Full refund to the customer.'
+        });
 
       const user = await Users.findById(payment.user);
       if (!user) throw new Error('User did not exist for customer');
@@ -189,21 +195,6 @@ async function processEvent(ctx) {
         [config.userFields.paypalSubscriptionID]: res.body.id
       });
 
-      // attempt to find user with paypal payer id
-      if (!user) {
-        // attempt to find the user by their paypal payer id
-        user = await Users.findOne({
-          [config.userFields.paypalPayerID]: res.body.subscriber.payer_id,
-          [config.userFields.paypalSubscriptionID]: { $exists: false }
-        });
-        // save user's subscription ID if not set
-        if (user) {
-          if (!user[config.userFields.paypalSubscriptionID])
-            user[config.userFields.paypalSubscriptionID] = res.body.id;
-          await user.save();
-        }
-      }
-
       //
       // NOTE: if there is no user then we can assume that they didn't
       //       get redirected post-checkout and so their subscription isn't assigned to them yet
@@ -252,7 +243,7 @@ async function processEvent(ctx) {
             subject: `PayPal Subscription Issue (${res.body.id})`
           },
           locals: {
-            message: `Your PayPal subscription could not be synchronized properly since your PayPal email address differs from your Forward Email account.  Please try to checkout again if necessary with PayPal and ensure that you proceed to our website after you have completed your PayPal transaction.  Visit <a target="_blank" rel="noopener noreferrer" href="${config.urls.web}/my-account/billing">${config.urls.web}/my-account/billing</a> to get your latest billing information.  We will automatically process your refund.`
+            message: `Your PayPal subscription could not be synchronized properly since your PayPal email address differs from your Forward Email account.  Please try to checkout again if necessary with PayPal and ensure that you proceed to our website after you have completed your PayPal transaction.  Visit <a target="_blank" rel="noopener noreferrer" href="${config.urls.web}/my-account/billing">${config.urls.web}/my-account/billing</a> to get your latest billing information.  We will automatically process your refund if necessary.`
           }
         })
           .then()
@@ -467,32 +458,53 @@ async function processEvent(ctx) {
       if (res?.body?.purchase_units?.[0]?.payments?.captures?.[0]?.id)
         transactionId = res?.body.purchase_units[0].payments.captures[0].id;
 
-      // capture payment
+      // capture payment with retry logic for PayPal infrastructure delays
       try {
-        const agent = await paypalAgent();
-        const response = await agent.post(
-          `/v2/checkout/orders/${res.body.id}/capture`
+        await retryPayPalRequest(
+          async () => {
+            const agent = await paypalAgent();
+            const response = await agent.post(
+              `/v2/checkout/orders/${res.body.id}/capture`
+            );
+            // parse the transaction id
+            if (response.body?.purchase_units?.[0]?.payments?.captures?.[0]?.id)
+              transactionId =
+                response.body.purchase_units[0].payments.captures[0].id;
+          },
+          {
+            retries: 3,
+            additionalStatusCodes: [404], // PayPal infrastructure delays cause 404s
+            calculateDelay: (count) => Math.round(1000 * 2 ** count) // 2s, 4s, 8s
+          }
         );
-        // parse the transaction id
-        if (response.body?.purchase_units?.[0]?.payments?.captures?.[0]?.id)
-          transactionId =
-            response.body.purchase_units[0].payments.captures[0].id;
       } catch (err) {
-        ctx.logger.warn(err);
+        ctx.logger.warn(err, {
+          paypal_order_id: res.body.id,
+          user_email: user.email,
+          retry_count: err.retryCount || 0,
+          max_retries: err.maxRetries || 0
+        });
+
+        // Only email admins for non-422 errors and include retry information
         if (!err.status || err.status !== 422) {
-          // email admins here
+          const isRetryExhausted = err.retryCount >= (err.maxRetries || 0);
           emailHelper({
             template: 'alert',
             message: {
               to: config.email.message.from,
-              subject: `Error while capturing PayPal order payment for ${user.email}`
+              subject: `${
+                isRetryExhausted ? 'CRITICAL: ' : ''
+              }Error while capturing PayPal order payment for ${user.email}${
+                isRetryExhausted ? ' (Retries Exhausted)' : ''
+              }`
             },
             locals: {
-              message: `<pre><code>${safeStringify(
-                parseErr(err),
-                null,
-                2
-              )}</code></pre>`
+              message: `<pre><code>PayPal Order ID: ${res.body.id}
+User Email: ${user.email}
+Retry Count: ${err.retryCount || 0}/${err.maxRetries || 0}
+Error Status: ${err.status || err.statusCode || 'Unknown'}
+
+${safeStringify(parseErr(err), null, 2)}</code></pre>`
             }
           })
             .then()
@@ -556,6 +568,217 @@ async function processEvent(ctx) {
       break;
     }
 
+    // Payment approval reversed - customer approved but payment wasn't captured in time
+    // Payment approval reversed - delete payment and cancel order
+    case 'CHECKOUT.PAYMENT-APPROVAL.REVERSED': {
+      if (!body?.resource?.id) {
+        const err = new TypeError(
+          'PayPal order ID missing from CHECKOUT.PAYMENT-APPROVAL.REVERSED webhook'
+        );
+        ctx.logger.error(err);
+        throw err;
+      }
+
+      if (!body?.resource?.purchase_units?.[0]?.reference_id) {
+        const err = new TypeError(
+          'Reference ID missing from CHECKOUT.PAYMENT-APPROVAL.REVERSED webhook'
+        );
+        ctx.logger.error(err);
+        throw err;
+      }
+
+      const user = await Users.findOne({
+        id: body.resource.purchase_units[0].reference_id
+      });
+
+      if (!user) {
+        ctx.logger.warn(
+          'User not found for CHECKOUT.PAYMENT-APPROVAL.REVERSED event',
+          {
+            paypal_order_id: body.resource.id,
+            reference_id: body.resource.purchase_units[0].reference_id
+          }
+        );
+        break;
+      }
+
+      // Find the payment record if it exists
+      const $or = [
+        {
+          user: user._id,
+          paypal_order_id: body.resource.id
+        }
+      ];
+
+      if (body?.resource?.purchase_units?.[0]?.invoice_id) {
+        $or.push({
+          user: user._id,
+          reference: body.resource.purchase_units[0].invoice_id
+        });
+      }
+
+      const payment = await Payments.findOne({ $or });
+
+      if (payment) {
+        ctx.logger.warn(
+          'Payment approval reversed by PayPal - deleting payment record',
+          {
+            payment_id: payment._id,
+            paypal_order_id: body.resource.id,
+            user_email: user.email,
+            amount: payment.amount,
+            plan: payment.plan
+          }
+        );
+
+        // Attempt to cancel the order on PayPal's side
+        try {
+          const cancelResponse = await paypalAgent.post(
+            `/v2/checkout/orders/${body.resource.id}/cancel`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'PayPal-Request-Id': `cancel-${body.resource.id}-${Date.now()}`
+              }
+            }
+          );
+
+          ctx.logger.info('Successfully cancelled PayPal order', {
+            paypal_order_id: body.resource.id,
+            cancel_response: cancelResponse.body
+          });
+        } catch (cancelErr) {
+          ctx.logger.warn(
+            'Failed to cancel PayPal order (order may already be cancelled)',
+            {
+              paypal_order_id: body.resource.id,
+              error: cancelErr.message
+            }
+          );
+        }
+
+        // Delete the payment record
+        await Payments.findByIdAndRemove(payment._id);
+
+        ctx.logger.info(
+          'Payment record deleted due to PayPal approval reversal',
+          {
+            payment_id: payment._id,
+            paypal_order_id: body.resource.id,
+            user_email: user.email
+          }
+        );
+      } else {
+        ctx.logger.warn(
+          'Payment record not found for CHECKOUT.PAYMENT-APPROVAL.REVERSED event',
+          {
+            paypal_order_id: body.resource.id,
+            user_email: user.email
+          }
+        );
+      }
+
+      // Send email notification to user
+      try {
+        await emailHelper({
+          template: 'alert',
+          message: {
+            to: user.email,
+            cc: config.email.message.from,
+            subject: 'Payment Processing Issue - Please Retry Your Payment'
+          },
+          locals: {
+            user: user.toObject(),
+            message: `
+<p>Hello ${user[config.userFields.fullEmail]},</p>
+
+<p>We encountered an issue processing your recent PayPal payment due to PayPal's infrastructure problems.</p>
+
+<p><strong>What happened:</strong></p>
+<ul>
+<li>PayPal approved your payment but then automatically reversed it</li>
+<li>No charge was made to your account</li>
+<li>Your payment attempt has been cancelled</li>
+</ul>
+
+<p><strong>Next steps:</strong></p>
+<ol>
+<li><strong>Please retry your payment</strong> by visiting your <a href="${
+              config.urls.web
+            }/my-account/billing">account billing page</a></li>
+<li>Consider using a credit card directly instead of PayPal for more reliable processing</li>
+<li>If you continue to experience issues, please contact our support team</li>
+</ol>
+
+<p><strong>Why this happened:</strong></p>
+<p>This issue is caused by PayPal's infrastructure problems, not your account or payment method. PayPal has had <a href="https://forwardemail.net/blog/docs/paypal-api-disaster-11-years-missing-features-broken-promises">documented API issues for over 11 years</a> that affect payment processing reliability.</p>
+
+<p>We apologize for any inconvenience. This is entirely due to PayPal's technical limitations.</p>
+
+<p>Best regards,<br>Forward Email Team</p>
+            `
+          }
+        });
+      } catch (err) {
+        ctx.logger.error(
+          'Failed to send user notification for CHECKOUT.PAYMENT-APPROVAL.REVERSED',
+          err
+        );
+      }
+
+      // Send detailed notification to team
+      try {
+        await emailHelper({
+          template: 'alert',
+          message: {
+            to: config.email.message.from,
+            cc: user.email,
+            subject: `PayPal Payment Approval Reversed - ${user.email} - Order ${body.resource.id}`
+          },
+          locals: {
+            message: `
+<h3>PayPal Payment Approval Reversed - Payment Deleted</h3>
+
+<p><strong>User Details:</strong></p>
+<ul>
+<li>Email: ${user.email}</li>
+<li>User ID: ${user.id}</li>
+<li>Plan: ${user.plan}</li>
+</ul>
+
+<p><strong>PayPal Details:</strong></p>
+<ul>
+<li>Order ID: ${body.resource.id}</li>
+<li>Payer Email: ${body?.resource?.payer?.email_address || 'N/A'}</li>
+<li>Payer ID: ${body?.resource?.payer?.payer_id || 'N/A'}</li>
+<li>Invoice ID: ${body?.resource?.purchase_units?.[0]?.invoice_id || 'N/A'}</li>
+</ul>
+
+<p><strong>Actions Taken:</strong></p>
+<ul>
+<li>✅ Payment record deleted from database</li>
+<li>✅ Attempted to cancel order on PayPal side</li>
+<li>✅ User notified to retry payment</li>
+</ul>
+
+<p><strong>Root Cause:</strong></p>
+<p>This is another example of PayPal's systematic infrastructure failures documented in our <a href="https://forwardemail.net/blog/docs/paypal-api-disaster-11-years-missing-features-broken-promises">PayPal API disaster blog post</a>.</p>
+
+<p><strong>Recommended Action:</strong></p>
+<p>Monitor if this user successfully retries with a different payment method. Consider reaching out proactively if they don't retry within 24 hours.</p>
+            `
+          }
+        });
+      } catch (err) {
+        ctx.logger.error(
+          'Failed to send team notification for CHECKOUT.PAYMENT-APPROVAL.REVERSED',
+          err
+        );
+      }
+
+      break;
+    }
+
     // TODO: handle other events
     default:
   }
@@ -564,14 +787,26 @@ async function processEvent(ctx) {
 // <https://developer.paypal.com/docs/api-basics/notifications/webhooks/>
 
 async function webhook(ctx) {
-  const response = await promisify(
-    paypal.notification.webhookEvent.verify,
-    paypal.notification.webhookEvent
-  )(ctx.request.headers, ctx.request.body, env.PAYPAL_WEBHOOK_ID);
+  let response;
+  try {
+    response = await promisify(
+      paypal.notification.webhookEvent.verify,
+      paypal.notification.webhookEvent
+    )(ctx.request.headers, ctx.request.body, env.PAYPAL_WEBHOOK_ID);
 
-  // throw an error if something was wrong
-  if (!_.isObject(response) || response.verification_status !== 'SUCCESS')
-    throw Boom.badRequest(ctx.translateError('INVALID_PAYPAL_SIGNATURE'));
+    // throw an error if something was wrong
+    if (!_.isObject(response) || response.verification_status !== 'SUCCESS')
+      throw Boom.badRequest(ctx.translateError('INVALID_PAYPAL_SIGNATURE'));
+  } catch {
+    response = await promisify(
+      paypal.notification.webhookEvent.verify,
+      paypal.notification.webhookEvent
+    )(ctx.request.headers, ctx.request.body, env.PAYPAL_WEBHOOK_ID_LEGACY);
+
+    // throw an error if something was wrong
+    if (!_.isObject(response) || response.verification_status !== 'SUCCESS')
+      throw Boom.badRequest(ctx.translateError('INVALID_PAYPAL_SIGNATURE'));
+  }
 
   // return a response to acknowledge receipt of the event
   ctx.body = { received: true };

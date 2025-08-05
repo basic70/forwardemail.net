@@ -13,11 +13,16 @@ const Payments = require('#models/payments');
 
 const FIVE_SECONDS = ms('5s');
 
-// eslint-disable-next-line complexity
 async function syncPayPalOrderPaymentByPaymentId(id) {
   const payment = await Payments.findById(id);
 
   if (!payment) throw new Error('Payment does not exist');
+
+  // Early return for deprecated legacy PayPal agent
+  if (payment.is_legacy_paypal) {
+    logger.debug('Skipping legacy PayPal agent usage - deprecated');
+    return;
+  }
 
   const agent = await paypalAgent();
 
@@ -88,6 +93,14 @@ async function syncPayPalOrderPaymentByPaymentId(id) {
       });
     } else if (capture.status === 'PARTIALLY_REFUNDED') {
       // lookup the refund and parse the amount refunded
+      // Early return for deprecated legacy PayPal agent
+      if (payment.is_legacy_paypal) {
+        logger.debug(
+          'Skipping legacy PayPal agent usage for refund lookup - deprecated'
+        );
+        return;
+      }
+
       const agent = await paypalAgent();
       const { body: refund } = await agent.get(
         `/v2/payments/refunds/${capture.id}`

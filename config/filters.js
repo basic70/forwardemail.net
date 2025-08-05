@@ -6,7 +6,7 @@
 const path = require('node:path');
 
 const I18N = require('@ladjs/i18n');
-const isSANB = require('is-string-and-not-blank');
+// const isSANB = require('is-string-and-not-blank');
 const manifestRev = require('manifest-rev');
 const { parse } = require('node-html-parser');
 
@@ -71,7 +71,6 @@ function fixTableOfContents(content) {
 
 const MAX_SECTIONS = 5;
 
-// eslint-disable-next-line complexity
 function fixTableOfContents(content, options) {
   // CSP fixes
   content = content.replaceAll(
@@ -109,6 +108,8 @@ function fixTableOfContents(content, options) {
   //
   for (const link of root.querySelectorAll('a')) {
     let href = link.getAttribute('href');
+    if (!href) continue;
+
     if (href.startsWith('#')) continue;
     if (href.includes('http://') || href.includes('https://')) {
       href = href.replace('http://', 'https://');
@@ -155,7 +156,8 @@ function fixTableOfContents(content, options) {
   a.setAttribute('href', '#top');
 
   // remove first <h1> if on docs page
-  if (options.isDocs) h1.remove();
+  // or if multiple <h1> tags
+  if (options.isDocs || root.querySelectorAll('h1').length > 1) h1.remove();
 
   // center first <p> if on docs page and had no previous element
   if (options.isDocs) {
@@ -337,7 +339,7 @@ function fixTableOfContents(content, options) {
       // eslint-disable-next-line unicorn/prefer-dom-node-append
       header.appendChild(
         parse(
-          `<a class="dropdown-toggle text-wrap btn btn-link btn-block text-left text-themed font-weight-bold p-0" href="#${id}" data-toggle="collapse" role="button" aria-expanded="false" aria-controls="collapse-${id}" data-target="#collapse-${id}">${lastChildRawText}</a>`
+          `<a class="dropdown-toggle text-wrap btn btn-link btn-block text-left text-themed p-0" href="#${id}" data-toggle="collapse" role="button" aria-expanded="false" aria-controls="collapse-${id}" data-target="#collapse-${id}">${lastChildRawText}</a>`
           // `<a class="dropdown-toggle text-wrap btn btn-link btn-block text-left text-themed font-weight-bold p-0" href="#${id}" data-toggle="collapse" role="button" aria-expanded="false" aria-controls="collapse-${id}" data-target="#collapse-${id}">${lastChildRawText}${
           //   options.hasSidebar && !lastChildRawText.endsWith('?') ? '?' : ''
           // }</a>`
@@ -555,8 +557,12 @@ module.exports = {
       // replace footnote escaped chars
       string = fixFootnoteReferences(string);
 
+      return fixTableOfContents(markdown.render(string), options);
+
+      /*
       if (typeof options !== 'object' || !isSANB(options.locale))
         return fixTableOfContents(markdown.render(string), options);
+
       return fixTableOfContents(
         i18n.api.t({
           phrase: markdown.render(string),
@@ -564,6 +570,7 @@ module.exports = {
         }),
         options
       );
+      */
     } catch (err) {
       console.error(err);
       throw err;

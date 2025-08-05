@@ -17,7 +17,6 @@ const isDenylisted = require('#helpers/is-denylisted');
 const isEmail = require('#helpers/is-email');
 const parseRootDomain = require('#helpers/parse-root-domain');
 
-// eslint-disable-next-line complexity
 async function validateDomain(ctx, next) {
   if (
     !isSANB(ctx.request.body.domain) ||
@@ -73,7 +72,19 @@ async function validateDomain(ctx, next) {
   //
   const rootDomain = parseRootDomain(ctx.request.body.domain);
 
-  const isDenylist = await isDenylisted(rootDomain, ctx.client, ctx.resolver);
+  try {
+    await isDenylisted(rootDomain, ctx.client, ctx.resolver);
+  } catch (err) {
+    if (err.name === 'DenylistError')
+      throw Boom.badRequest(
+        ctx.translateError(
+          'DENYLIST_DOMAIN_NOT_ALLOWED',
+          err.denylistValue,
+          ctx.state.l(`/denylist?q=${err.denylistValue}`)
+        )
+      );
+    throw err;
+  }
 
   // if it was allowlisted then notify them to contact help
   // (we would manually create)
@@ -96,15 +107,6 @@ async function validateDomain(ctx, next) {
       )
   }
   */
-
-  if (isDenylist)
-    throw Boom.badRequest(
-      ctx.translateError(
-        'DENYLIST_DOMAIN_NOT_ALLOWED',
-        rootDomain,
-        ctx.state.l(`/denylist?q=${rootDomain}`)
-      )
-    );
 
   if (isSANB(ctx.request.body.plan)) {
     if (

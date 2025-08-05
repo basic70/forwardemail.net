@@ -21,12 +21,12 @@ const {
 // });
 
 const bytes = require('@forwardemail/bytes');
-const checkDiskSpace = require('check-disk-space').default;
 // const dayjs = require('dayjs-with-plugins');
 const ip = require('ip');
 const ms = require('ms');
 const osu = require('node-os-utils');
 
+const checkDiskSpace = require('#helpers/check-disk-space');
 const env = require('#config/env');
 const logger = require('#helpers/logger');
 
@@ -65,7 +65,6 @@ const mountMapping = {};
 //   );
 // });
 
-// eslint-disable-next-line complexity
 async function check() {
   // NOTE: might want to add this somewhere
   // <https://updown.io/blog/the-funny-rules-of-spamassassin-in-2023>
@@ -188,7 +187,6 @@ async function check() {
 
             // dirent.name
             try {
-              // eslint-disable-next-line no-await-in-loop
               const diskSpace = await checkDiskSpace(
                 path.join('/mnt', dirent.name)
               );

@@ -19,6 +19,69 @@ for (const key of Object.keys(statuses.message)) {
   STATUSES[key.toString()] = statuses.message[key];
 }
 
+const ALIAS_GENERATED_PASSWORD = `
+<div class="container mt-4">
+  <div class="alert alert-danger small font-weight-bold d-inline-block mb-4">
+    You must copy and store the password below somewhere before closing this pop-up – we do not store it; it cannot be recovered if lost.
+  </div>
+
+  <div class="mb-4">
+    <strong>Username:</strong>
+    <code class="notranslate">%s</code>
+    <button type="button" data-toggle="clipboard" data-clipboard-text="%s" class="notranslate ml-3 btn btn-dark">
+      <i class="fa fa-clipboard"></i> Copy
+    </button>
+  </div>
+
+  <div class="mb-4">
+    <strong>Password:</strong>
+    <code class="notranslate">%s</code>
+    <button type="button" data-toggle="clipboard" data-clipboard-text="%s" class="notranslate ml-3 btn btn-dark">
+      <i class="fa fa-clipboard"></i> Copy
+    </button>
+  </div>
+
+  <div class="alert alert-primary small font-weight-bold d-inline-block mb-4">
+    Scan the QR codes below and open them to easily set up your account.
+  </div>
+
+  <div class="row mt-3 mb-0">
+    <div class="col-12 col-md-6">
+      <strong>Apple Mail (macOS/iOS)</strong>
+      <div class="d-flex justify-content-center">
+        <ol class="small text-left mb-4 mt-3">
+          <li>Scan the QR Code</li>
+          <li>Open the <span class="notranslate">.mobileconfig</span> file</li>
+          <li>Allow the Profile Download</li>
+          <li>Open Settings > General > VPN & Device Management</li>
+          <li>Review and Install the Profile</li>
+          <li>Open the Mail app to verify</li>
+        </ol>
+      </div>
+      <img alt="Apple Mail QR Code" src="%s" class="bg-white p-3 mb-3" />
+      <br />
+      <a href="%s" download="%s" target="_blank" class="btn btn-success">Download</a>
+    </div>
+
+    <div class="col-12 col-md-6 mt-4 mt-md-0">
+      <strong>Thunderbird Mobile (Android)</strong>
+      <div class="d-flex justify-content-center">
+        <ol class="text-left mb-4 mt-3">
+          <li>Open Thunderbird Mobile</li>
+          <li>Go to Settings</li>
+          <li>Select Import Settings</li>
+          <li>Tap Scan QR Code</li>
+        </ol>
+      </div>
+      <img alt="Thunderbird QR Code" src="%s" class="bg-white p-3" />
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <strong class="text-danger">This pop-up will automatically close in 10 minutes.</strong>
+  </div>
+</div>`.trim();
+
 module.exports = {
   ABUSE_PREVENTION_DELETE_ACCOUNT:
     'You cannot perform this deletion until 5 days after your first payment was made. This is an abuse prevention measure to mitigate fraud and spam, and it is noted in our privacy policy.',
@@ -59,6 +122,14 @@ module.exports = {
     '<div>The following alias names were detected on <strong class="notranslate text-monospace">%s</span> to be listed in restricted alias names and already existed.  You may wish to manually remove them, edit the names, and/or notify the alias owner to change their alias name:</div><ul class="notranslate"><li>%s</li></ul>',
   INVALID_LOCAL_PART:
     '<span class="notranslate">%s</span> is not a valid UTF-8 local part for an alias name',
+  ALIAS_NAME_INVISIBLE_UNICODE:
+    'Alias name cannot contain invisible Unicode characters',
+  RECIPIENT_INVISIBLE_UNICODE:
+    'Recipient cannot contain invisible Unicode characters',
+  VERIFIED_RECIPIENT_INVISIBLE_UNICODE:
+    'Verified recipient cannot contain invisible Unicode characters',
+  PENDING_RECIPIENT_INVISIBLE_UNICODE:
+    'Pending recipient cannot contain invisible Unicode characters',
   RECIPIENT_MATCHES_EMAIL:
     '<p>You must edit the "Recipients" for these aliases to ensure they forward to a proper destination:</p><ul class="notranslate"><li>%s<li></ul><p><strong>IMPORTANT NOTE:</strong> You must ensure that you check the checkbox for "Active" once complete to re-enable the aliases on the Edit Alias screen.</p>',
   LINK_EXPIRED_OR_INVALID:
@@ -190,8 +261,7 @@ module.exports = {
   CANNOT_CREATE_TOKEN_FOR_REGEX: 'Cannot create token for regex alias.',
   ALIAS_PASSWORD_EMAIL:
     '<p><span class="notranslate text-monospace font-weight-bold">%s</span> has sent you a password to use for <span class="notranslate text-monospace font-weight-bold">%s</span>.</p><p><a href="%s" rel="noopener noreferrer" class="font-weight-bold text-decoration-underline" target="_blank">Click this link</a> and immediately follow the instructions.</p>',
-  ALIAS_GENERATED_PASSWORD:
-    '<br /><div class="mt-3 alert alert-danger small font-weight-bold d-inline-block">You must copy and store the password below somewhere before closing this pop-up &ndash; we do not store it; it cannot be recovered if lost.</div><br /><br /><strong>Username:</strong> <code class="notranslate">%s</code><button type="button" data-toggle="clipboard" data-clipboard-text="%s" class="notranslate ml-3 btn btn-dark"><i class="fa fa-clipboard"></i> Copy</button><br /><br /><strong>Password:</strong> <code class="notranslate">%s</code><button type="button" data-toggle="clipboard" data-clipboard-text="%s" class="notranslate ml-3 btn btn-dark"><i class="fa fa-clipboard"></i> Copy</button><br /><br /><small class="alert alert-primary d-inline-block font-weight-bold">Scan the QR codes below and open them to easily setup your account.</small><ul class="list-inline mt-3 mb-0"><li class="list-inline-item"><strong>Apple Mail (macOS/iOS)</strong><br /><br /><img alt="" src="%s" class="bg-white p-3" /><br /><br /><a href="%s" download="%s" target="_blank" class="btn btn-success mb-3">Download</a></li><li class="list-inline-item ml-md-5"><strong>Thunderbird Mobile (Android)</strong><br /><br /><img alt="" src="%s" class="p-3 bg-white" /><br /><br /><a href="%s" download="%s" target="_blank" class="btn btn-success mb-3">Download</a></li></ul><br /><strong class="text-danger">This pop-up will automatically close in 10 minutes.</strong>',
+  ALIAS_GENERATED_PASSWORD,
   ALIAS_GENERATED_PASSWORD_NO_MOBILE_CONFIG:
     '<br /><div class="mt-3 alert alert-danger small font-weight-bold d-inline-block">You must copy and store the password below somewhere before closing this pop-up &ndash; we do not store it; it cannot be recovered it lost.</div><br /><br /><strong>Username:</strong> <code class="notranslate">%s</code><button type="button" data-toggle="clipboard" data-clipboard-text="%s" class="notranslate ml-3 btn btn-dark"><i class="fa fa-clipboard"></i> Copy</button><br /><br /><strong>Password:</strong> <code class="notranslate">%s</code><button type="button" data-toggle="clipboard" data-clipboard-text="%s" class="notranslate ml-3 btn btn-dark"><i class="fa fa-clipboard"></i> Copy</button><br /><br /><strong class="text-danger">This pop-up will automatically close in 10 minutes.</strong>',
   FASTEST_EMAIL: 'The Fastest Email Service',
@@ -722,8 +792,62 @@ module.exports = {
   SMTP: 'smtp',
   STORAGE: 'storage',
   SUCCESS: 'success',
+  UPGRADE_REQUEST_ALREADY_SENT:
+    'You recently sent an upgrade request, please try again later or contact us.',
   UPGRADE_REQUEST: 'Upgrade Request',
   UPGRADE_REQUEST_NOTIFICATION:
     'Our team has been notified and will follow up shortly by email.',
+  FREE_CREDIT_GRANTED:
+    'Free credit granted successfully to <span class="notranslate">%s</span> for <span class="notranslate">%s</span> plan (%s duration)',
+
+  // API endpoint validation messages
+  CONTACT_FULLNAME_OR_CONTENT_REQUIRED:
+    'Contact must have either fullName or vCard content.',
+  CONTACT_INVALID_ID: 'Invalid contact ID.',
+
+  CALENDAR_NAME_REQUIRED: 'Calendar name is required.',
+  CALENDAR_INVALID_ID: 'Invalid calendar ID.',
+
+  FOLDER_NAME_OR_PATH_REQUIRED: 'Folder must have either name or path.',
+  FOLDER_INVALID_ID: 'Invalid folder ID.',
+  FOLDER_DOES_NOT_EXIST: 'Folder does not exist.',
+
+  // General validation phrases
+  INVALID_PARAMS: 'Invalid parameters.',
+  INVALID_REQUEST_BODY: 'Invalid request body.',
+
+  MESSAGE_INVALID_ID: 'Invalid message ID.',
+  MESSAGE_DOES_NOT_EXIST: 'Message does not exist.',
+  MESSAGE_FLAGS_INVALID: 'Message flags invalid.',
+
+  // Contact validation phrases
+  CONTACT_ID_REQUIRED: 'Contact ID is required.',
+  CONTACT_FULLNAME_INVALID: 'Contact full name must be a valid string.',
+  CONTACT_CONTENT_INVALID: 'Contact content must be a valid string.',
+  CONTACT_UPDATE_FIELDS_REQUIRED:
+    'At least one field must be provided for contact update.',
+  CONTACT_EMAILS_MUST_BE_ARRAY: 'Contact emails must be an array.',
+  CONTACT_EMAIL_MUST_BE_OBJECT: 'Contact email must be an object.',
+  CONTACT_EMAIL_INVALID:
+    'Contact email address is required and must be a valid email address.',
+  CONTACT_EMAIL_TYPE_INVALID: 'Contact email type must be a valid string.',
+  CONTACT_PHONES_MUST_BE_ARRAY: 'Contact phones must be an array.',
+  CONTACT_PHONE_MUST_BE_OBJECT: 'Contact phone must be an object.',
+  CONTACT_PHONE_INVALID:
+    'Contact phone number is required and must be a valid string.',
+  CONTACT_PHONE_TYPE_INVALID: 'Contact phone type must be a valid string.',
+  CONTACT_ADDRESSES_MUST_BE_ARRAY: 'Contact addresses must be an array.',
+  CONTACT_ADDRESS_MUST_BE_OBJECT: 'Contact address must be an object.',
+  CONTACT_ADDRESS_STREET_INVALID:
+    'Contact address street must be a valid string.',
+  CONTACT_ADDRESS_CITY_INVALID: 'Contact address city must be a valid string.',
+  CONTACT_ADDRESS_STATE_INVALID:
+    'Contact address state must be a valid string.',
+  CONTACT_ADDRESS_POSTAL_CODE_INVALID:
+    'Contact address postal code must be a valid string.',
+  CONTACT_ADDRESS_COUNTRY_INVALID:
+    'Contact address country must be a valid string.',
+  CONTACT_ADDRESS_TYPE_INVALID: 'Contact address type must be a valid string.',
+
   ...STATUSES
 };

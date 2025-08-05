@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-const path = require('node:path');
+// const path = require('node:path');
 const punycode = require('node:punycode');
 
 const Boom = require('@hapi/boom');
 const Meta = require('koa-meta');
 const isSANB = require('is-string-and-not-blank');
-const pug = require('pug');
-const { parse } = require('node-html-parser');
+// const pug = require('pug');
+// const { parse } = require('node-html-parser');
 
 const getDmarcRecord = require('mailauth/lib/dmarc/get-dmarc-record');
 const importAliases = require('./import-aliases');
@@ -26,7 +26,6 @@ const meta = new Meta(config.meta, logger);
 const META_TITLE_AFFIX = `| ${config.appName}`;
 const EXCHANGES = config.exchanges;
 
-// eslint-disable-next-line complexity
 async function retrieveDomain(ctx, next) {
   if (!isSANB(ctx.params.domain_id) && !isSANB(ctx.request.body.domain))
     throw Boom.notFound(ctx.translateError('DOMAIN_DOES_NOT_EXIST'));
@@ -584,6 +583,7 @@ async function retrieveDomain(ctx, next) {
     ctx.flash('warning', message);
   }
 
+  /*
   // dynamically load the DNS Management by Registrar table from FAQ
   try {
     const html = pug.renderFile(
@@ -605,6 +605,7 @@ async function retrieveDomain(ctx, next) {
   } catch (err) {
     ctx.logger.error(err);
   }
+  */
 
   return next();
 }

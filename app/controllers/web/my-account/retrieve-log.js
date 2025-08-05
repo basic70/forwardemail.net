@@ -7,10 +7,10 @@ const Boom = require('@hapi/boom');
 const isSANB = require('is-string-and-not-blank');
 const mongoose = require('mongoose');
 const isEmail = require('#helpers/is-email');
+const env = require('#config/env');
 
 const { Logs, Aliases } = require('#models');
 
-// eslint-disable-next-line complexity
 async function retrieveLog(ctx, next) {
   //
   // NOTE: this is a safeguard since logs are sensitive
@@ -22,7 +22,12 @@ async function retrieveLog(ctx, next) {
     throw Boom.badRequest(ctx.translateError('LOG_DOES_NOT_EXIST'));
 
   const log = await Logs.findOne({
-    _id: new mongoose.Types.ObjectId(ctx.params.id)
+    $and: [
+      { _id: new mongoose.Types.ObjectId(ctx.params.id) },
+      {
+        $or: [{ err: { $exists: false } }, { 'err.isCodeBug': { $ne: true } }]
+      }
+    ]
   })
     .lean()
     .exec();
@@ -73,10 +78,16 @@ async function retrieveLog(ctx, next) {
   }
 
   //
-  // TODO: ensure that `log.meta.session.envelope.mailFrom.address` is valid
+  // ensure that `log.meta.session.envelope.mailFrom.address` is valid
   // (logged in user must either be alias owner or domain admin)
   //
-  if (log?.email || log?.meta?.email) {
+  let isValidMailFrom = false;
+
+  if (
+    log?.email ||
+    log?.meta?.email ||
+    log?.meta?.app?.hostname === env.SMTP_HOST
+  ) {
     // validation safeguard
     if (
       !isSANB(log.meta.session.envelope.mailFrom.address) ||
@@ -105,7 +116,9 @@ async function retrieveLog(ctx, next) {
     if (!match) throw Boom.badRequest(ctx.translateError('LOG_DOES_NOT_EXIST'));
 
     // if the user is not an admin of the domain then filter for individual rcpts
-    if (!isAdmin) {
+    if (isAdmin) {
+      isValidMailFrom = true;
+    } else {
       const email = `${username}@${domain}`.toLowerCase();
 
       const domainToAliases = nonAdminDomainsToAliases[match.toString()];
@@ -118,6 +131,8 @@ async function retrieveLog(ctx, next) {
         !domainToAliases.includes(email)
       )
         throw Boom.badRequest(ctx.translateError('LOG_DOES_NOT_EXIST'));
+
+      isValidMailFrom = true;
     }
   }
 
@@ -127,7 +142,8 @@ async function retrieveLog(ctx, next) {
   if (
     !log.email &&
     !log?.meta?.email &&
-    Array.isArray(log?.meta?.session?.envelope?.rcptTo)
+    Array.isArray(log?.meta?.session?.envelope?.rcptTo) &&
+    !isValidMailFrom
   )
     log.meta.session.envelope.rcptTo = log.meta.session.envelope.rcptTo.filter(
       (rcpt) => {
@@ -175,8 +191,16 @@ async function retrieveLog(ctx, next) {
     !log.email &&
     !log?.meta?.email &&
     log.meta.session.envelope.rcptTo.length === 0
-  )
+  ) {
+    // keeping this here in case we have more edge cases
+    const err = new TypeError('Log does not exist issue');
+    err.isCodeBug = true;
+    err.log = log;
+    err.user = ctx.state.user;
+    ctx.logger.fatal(err);
+
     throw Boom.badRequest(ctx.translateError('LOG_DOES_NOT_EXIST'));
+  }
 
   ctx.state.log = log;
 

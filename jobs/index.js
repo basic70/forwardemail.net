@@ -27,6 +27,16 @@ let jobs = [
     path: path.join(__dirname, 'paypal', 'dup-tx-id.js')
   },
   {
+    name: 'paypal-automated-capture-retry',
+    interval: '5m',
+    timeout: 0
+  },
+  {
+    name: 'check-paypal-abuse',
+    interval: '1h',
+    timeout: 0
+  },
+  {
     name: 'stripe',
     interval: '1.5h',
     timeout: '1.5h',
@@ -45,6 +55,11 @@ let jobs = [
   },
   {
     name: 'billing',
+    interval: '1h',
+    timeout: 0
+  },
+  {
+    name: 'banned-user-abuse',
     interval: '1h',
     timeout: 0
   },
@@ -254,7 +269,7 @@ if (process.env.NODE_ENV === 'production') {
     },
     {
       name: 'ubuntu-sync-memberships',
-      interval: '1m',
+      interval: '5m',
       timeout: 0
     }
   );

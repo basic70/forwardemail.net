@@ -22,6 +22,7 @@ const toObject = require('./to-object');
 const { encrypt, decrypt } = require('./encrypt-decrypt');
 const { encoder, decoder } = require('./encoder-decoder');
 const { paypalAgent, paypal } = require('./paypal');
+const { paypalAgentLegacy } = require('./paypal-legacy');
 // TODO: create an npm package for this and then add it in smtp code too
 const combineErrors = require('./combine-errors');
 const ThresholdError = require('./threshold-error');
@@ -49,6 +50,7 @@ const isSocketError = require('./is-socket-error');
 const SMTPError = require('./smtp-error');
 const RetryClient = require('./retry-client');
 const retryRequest = require('./retry-request');
+const retryPayPalRequest = require('./retry-paypal-request');
 const getBounceInfo = require('./get-bounce-info');
 const getLogsCsv = require('./get-logs-csv');
 const imap = require('./imap');
@@ -142,6 +144,9 @@ const lodash = require('./lodash');
 const abusePreventionByUserId = require('./abuse-prevention-by-user-id');
 const xmlHelpers = require('./carddav-xml');
 const setupAuthSession = require('./setup-auth-session');
+const checkDiskSpace = require('./check-disk-space');
+const ensureDefaultAddressBook = require('./ensure-default-address-book');
+const getNodemailerMessageFromRequest = require('./get-nodemailer-message-from-request');
 
 const REGEX_LOCALHOST = require('./regex-localhost');
 
@@ -159,6 +164,7 @@ module.exports = {
   parseLoginSuccessRedirect,
   paypal,
   paypalAgent,
+  paypalAgentLegacy,
   policies,
   rateLimit,
   refund,
@@ -287,5 +293,9 @@ module.exports = {
   lodash,
   abusePreventionByUserId,
   xmlHelpers,
-  setupAuthSession
+  setupAuthSession,
+  checkDiskSpace,
+  retryPayPalRequest,
+  ensureDefaultAddressBook,
+  getNodemailerMessageFromRequest
 };

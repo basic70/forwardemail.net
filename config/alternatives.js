@@ -1806,6 +1806,7 @@ const obj = {
     'A'
   ],
   // Sendinblue is now Brevo (see above)
+  /*
   Skiff: [
     // description
     'Privacy-first end-to-end encrypted email (NOTE: this company is no longer in business and shutting down service in August 2024)',
@@ -1850,6 +1851,7 @@ const obj = {
     // ssl_labs
     'A+'
   ],
+  */
   // SparkPost is now MessageBird
   Startmail: [
     // description
@@ -3696,25 +3698,23 @@ if (
           );
           err.isCodeBug = true;
           logger.fatal(err);
-          // eslint-disable-next-line no-await-in-loop
+
           const page = await browser.newPage();
 
           // <https://www.useragents.me/>
           const customUserAgent =
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.1';
-          // eslint-disable-next-line no-await-in-loop
+
           await page.setUserAgent(customUserAgent);
 
-          // eslint-disable-next-line no-await-in-loop
           await page.setViewport({
             width: 1366,
             height: 768,
             deviceScaleFactor: 2
           });
-          // eslint-disable-next-line no-await-in-loop
+
           await page.goto(a.website);
           try {
-            // eslint-disable-next-line no-await-in-loop
             await page.screenshot({
               path: p
             });
@@ -3724,7 +3724,7 @@ if (
           }
 
           // <https://stackoverflow.com/a/76505750>
-          // eslint-disable-next-line no-await-in-loop
+
           await page.close();
         }
 
@@ -3761,7 +3761,6 @@ if (
 
         const pages = await browser.pages();
         for (const page of pages) {
-          // eslint-disable-next-line no-await-in-loop
           await page.close();
         }
 

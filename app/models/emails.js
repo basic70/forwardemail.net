@@ -1099,11 +1099,13 @@ Emails.statics.getMessage = async function (obj, returnString = false) {
 // options.user (from `ctx.state.user` or `alias.user`)
 // options.date
 // options.catchall (boolean, true, if using domain-wide generated catch-all password)
-// eslint-disable-next-line complexity
+
 Emails.statics.queue = async function (
   options = {},
   locale = i18n.config.defaultLocale
 ) {
+  const isBounce = boolean(options?.is_bounce);
+
   //
   // NOTE: memory-leak warning from nodemailer message docs:
   //       when using readable streams as content if sending fails then
@@ -1370,7 +1372,9 @@ Emails.statics.queue = async function (
   else if (
     !options.catchall &&
     alias &&
-    from !== `${punycode.toASCII(alias.name)}@${punycode.toASCII(domain.name)}`
+    from !==
+      `${punycode.toASCII(alias.name)}@${punycode.toASCII(domain.name)}` &&
+    !isBounce
   )
     throw Boom.forbidden(
       i18n.translateError(
@@ -1432,32 +1436,39 @@ Emails.statics.queue = async function (
       // send an email to all admins
       const obj = await Domains.getToAndMajorityLocaleByDomain(domain);
       try {
-        await emailHelper({
-          template: 'smtp-suspended',
-          message: { to: obj.to, bcc: config.email.message.from },
-          locals: {
-            domain:
-              typeof domain.toObject === 'function'
-                ? domain.toObject()
-                : domain,
-            locale: obj.locale,
-            category: 'virus',
-            responseCode: 554,
-            response: messages.join(' '),
-            truthSource: config.webHost,
-            email: {
-              envelope: info.envelope,
-              messageId,
-              subject,
-              date
+        // only send smtp prevented emails once a day for the domain
+        const key = `smtp_prevented:${domain.id}`;
+        const cache = await redis.get(key);
+        if (!cache) {
+          await emailHelper({
+            template: 'smtp-prevented',
+            message: { to: obj.to }, // , bcc: config.email.message.from },
+            locals: {
+              domain:
+                typeof domain.toObject === 'function'
+                  ? domain.toObject()
+                  : domain,
+              locale: obj.locale,
+              category: 'virus',
+              responseCode: 554,
+              response: messages.join(' '),
+              truthSource: config.webHost,
+              email: {
+                envelope: info.envelope,
+                messageId,
+                subject,
+                date
+              }
             }
-          }
-        });
+          });
+          await redis.set(key, true, 'PX', ms('1d'));
+        }
       } catch (err) {
         // NOTE: it would be better to use `ctx.logger` probably here
         logger.fatal(err);
       }
 
+      /*
       // if any of the domain admins are admins then don't ban
       const adminExists = await Users.exists({
         _id: {
@@ -1480,6 +1491,7 @@ Emails.statics.queue = async function (
             is_smtp_suspended: true
           }
         });
+      */
 
       // needs to be forbidden so it gets mapped to 5xx error
       const error = Boom.forbidden(messages.join(' '));
@@ -1504,7 +1516,7 @@ Emails.statics.queue = async function (
     date,
     subject,
     status,
-    is_bounce: boolean(options?.is_bounce)
+    is_bounce: isBounce
   });
 
   return email;

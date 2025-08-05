@@ -16,8 +16,8 @@ const reservedEmailAddressesList = require('reserved-email-addresses-list');
 const slug = require('speakingurl');
 const striptags = require('striptags');
 const { boolean } = require('boolean');
+const { generateSlug } = require('random-word-slugs');
 const { isIP, isURL } = require('@forwardemail/validator');
-const { randomstring } = require('@sidoshi/random-string');
 const _ = require('#helpers/lodash');
 
 // <https://github.com/Automattic/mongoose/issues/5534>
@@ -29,6 +29,7 @@ const createPassword = require('#helpers/create-password');
 const getKeyInfo = require('#helpers/get-key-info');
 const i18n = require('#helpers/i18n');
 const logger = require('#helpers/logger');
+const { detectInvisibleUnicode } = require('#helpers/detect-invisible-unicode');
 
 // <https://1loc.dev/string/check-if-a-string-consists-of-a-repeated-character-sequence/>
 const consistsRepeatedSubstring = (str) =>
@@ -234,7 +235,18 @@ const Aliases = new mongoose.Schema({
     required: true,
     lowercase: true,
     trim: true,
-    index: true
+    index: true,
+    validate: {
+      validator(value) {
+        if (detectInvisibleUnicode(value)) {
+          throw Boom.badRequest(
+            i18n.translateError('ALIAS_NAME_INVISIBLE_UNICODE', this.locale)
+          );
+        }
+
+        return true;
+      }
+    }
   },
   description: {
     type: String,
@@ -269,7 +281,20 @@ const Aliases = new mongoose.Schema({
       type: String,
       trim: true,
       lowercase: true,
-      validate: (value) => isEmail(value)
+      validate: {
+        validator(value) {
+          if (detectInvisibleUnicode(value)) {
+            throw Boom.badRequest(
+              i18n.translateError(
+                'VERIFIED_RECIPIENT_INVISIBLE_UNICODE',
+                this.locale
+              )
+            );
+          }
+
+          return isEmail(value);
+        }
+      }
     }
   ],
   // this is an array of emails that have been sent a verification email
@@ -278,7 +303,20 @@ const Aliases = new mongoose.Schema({
       type: String,
       trim: true,
       lowercase: true,
-      validate: (value) => isEmail(value)
+      validate: {
+        validator(value) {
+          if (detectInvisibleUnicode(value)) {
+            throw Boom.badRequest(
+              i18n.translateError(
+                'PENDING_RECIPIENT_INVISIBLE_UNICODE',
+                this.locale
+              )
+            );
+          }
+
+          return isEmail(value);
+        }
+      }
     }
   ],
   recipients: [
@@ -288,11 +326,20 @@ const Aliases = new mongoose.Schema({
       trim: true,
       // must be IP or FQDN or email
       validate: {
-        validator: (value) =>
-          isIP(value) ||
-          isFQDN(value) ||
-          isEmail(value) ||
-          isURL(value, config.isURLOptions),
+        validator(value) {
+          if (detectInvisibleUnicode(value)) {
+            throw Boom.badRequest(
+              i18n.translateError('RECIPIENT_INVISIBLE_UNICODE', this.locale)
+            );
+          }
+
+          return (
+            isIP(value) ||
+            isFQDN(value) ||
+            isEmail(value) ||
+            isURL(value, config.isURLOptions)
+          );
+        },
         message:
           'Recipient must be a valid email address, fully-qualified domain name ("FQDN"), IP address, or webhook URL'
       }
@@ -363,9 +410,35 @@ Aliases.pre('validate', function (next) {
 
   // if name was not a string then generate a random one
   if (!isSANB(this.name)) {
-    this.name = randomstring({
-      characters: 'abcdefghijklmnopqrstuvwxyz0123456789',
-      length: 10
+    //
+    // NOTE: previously we generated a random string
+    //       however these strings were not memorable
+    //
+    // this.name = randomstring({
+    //   characters: 'abcdefghijklmnopqrstuvwxyz0123456789',
+    //   length: 10
+    // });
+    //
+    this.name = generateSlug(2, {
+      format: 'kebab',
+      categories: {
+        noun: [
+          'animals',
+          'business',
+          'education',
+          'food',
+          'health',
+          'media',
+          'place',
+          'profession',
+          'science',
+          'sports',
+          'technology',
+          'thing',
+          'time',
+          'transportation'
+        ]
+      }
     });
   }
 
@@ -498,7 +571,6 @@ Aliases.virtual('is_update')
     this.__is_update = boolean(isUpdate);
   });
 
-// eslint-disable-next-line complexity
 Aliases.pre('save', async function (next) {
   const alias = this;
   try {
