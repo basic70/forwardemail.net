@@ -20,7 +20,7 @@ const pWaitFor = require('p-wait-for');
 const pify = require('pify');
 const safeStringify = require('fast-safe-stringify');
 const test = require('ava');
-const { SMTPServer } = require('smtp-server');
+const { SMTPServer } = require('@forwardemail/smtp-server');
 const { SRS } = require('sender-rewriting-scheme');
 
 const utils = require('../utils');
@@ -422,6 +422,10 @@ Test`.trim()
     );
 
     t.regex(err.message, /Failed to resolve any IP addresses/);
+    t.is(
+      err.message,
+      `Message failed: 421 4.4.2 Failed to resolve any IP addresses for the Mail Exchange (MX) server associated with "beep.com"`
+    );
     t.is(err.responseCode, 421);
   }
 
