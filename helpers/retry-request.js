@@ -35,12 +35,13 @@ async function retryRequest(url, opts = {}, count = 1) {
     // TypeError: Cannot read properties of undefined (reading 'length')
     // (which means it occurs in tangerine under the hood)
     //
+	/*
     if (opts.resolver)
       opts.dispatcher = new undici.Agent({
-        // TODO: should we change defaults here; if so, change elsewhere too
-        // headersTimeout: ms(DURATION),
-        // connectTimeout: ms(DURATION),
-        // bodyTimeout: ms(DURATION),
+        /. TODO: should we change defaults here; if so, change elsewhere too
+        /. headersTimeout: ms(DURATION),
+        /. connectTimeout: ms(DURATION),
+        /. bodyTimeout: ms(DURATION),
         connect: {
           lookup(hostname, options, fn) {
             opts.resolver
@@ -52,6 +53,7 @@ async function retryRequest(url, opts = {}, count = 1) {
           }
         }
       });
+	*/
 
     const response = await undici.request(url, opts);
     clearTimeout(t);
