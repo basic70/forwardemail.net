@@ -198,7 +198,7 @@ services:
 
   mx:
     # image: ghcr.io/forwardemail/forwardemail.net-selfhosted:latest
-    image: fe-braxo
+    image: fe-braxo:latest
     container_name: mx
     network_mode: host
     command: ["node", "mx.js"]
