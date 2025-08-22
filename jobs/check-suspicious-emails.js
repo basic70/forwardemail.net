@@ -99,7 +99,13 @@ async function sendAggregatedAlert(suspiciousUsers) {
       .map(
         ({ user, suspicionResult }) => `
         <li>
-          <strong><code>${user.email}</code></strong> (${user._id})
+          <strong><a href="${
+            config.urls.web
+          }/admin/users?q=${encodeURIComponent(
+          user.email
+        )}" target="_blank" rel="noopener noreferrer">${
+          user.email
+        }</a></strong> (${user._id})
           <ul>
             <li>Registration: ${dayjs(user.created_at).format(
               'YYYY-MM-DD HH:mm:ss UTC'
@@ -136,7 +142,7 @@ async function sendAggregatedAlert(suspiciousUsers) {
     await emailHelper({
       template: 'alert',
       message: {
-        to: config.email.message.from,
+        to: config.alertsEmail,
         subject
       },
       locals: { message }
