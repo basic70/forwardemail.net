@@ -1,7 +1,7 @@
 {
   "name": "forward-email",
   "description": "The best open-source and free email forwarding service for custom domains. We do not keep logs nor store emails. We don't track you. Unlimited aliases, catch-alls, wildcards, API access, and disposable addresses. Built-in support for DKIM, SRS, SPF, ARC, DMARC, and more. No credit card required.",
-  "version": "1.2.11",
+  "version": "1.2.12",
   "author": "Forward Email LLC <support@forwardemail.net> (https://forwardemail.net)",
   "browser": {
     "ioredis": false,
@@ -48,7 +48,7 @@
     "@ladjs/assets": "2.1.29",
     "@ladjs/consolidate": "1.0.4",
     "@ladjs/env": "4.0.0",
-    "@ladjs/graceful": "4.2.0",
+    "@ladjs/graceful": "5.0.0",
     "@ladjs/i18n": "8.0.3",
     "@ladjs/koa-simple-ratelimit": "4.1.1",
     "@ladjs/mongoose": "7.0.0",
