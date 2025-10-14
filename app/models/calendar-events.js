@@ -72,7 +72,8 @@ const CalendarEvents = new mongoose.Schema(
     // Component type to differentiate between events and tasks
     componentType: {
       type: String,
-      enum: ['VEVENT', 'VTODO'],
+      // enum: ['VEVENT', 'VTODO'],
+      default: 'VEVENT',
       index: true
     },
     /*
@@ -164,16 +165,8 @@ const CalendarEvents = new mongoose.Schema(
         } else if (vevent && vtodo) {
           // If both exist, prioritize VEVENT for backward compatibility
           this.componentType = 'VEVENT';
-        }
-
-        // Validate that the component type is supported by the calendar
-        if (this.calendar) {
-          const calendar = await Calendars.findById(this.calendar);
-          if (calendar && calendar.supportedComponents !== this.componentType) {
-            throw new TypeError(
-              `Calendar does not support ${this.componentType} components`
-            );
-          }
+        } else {
+          this.componentType = 'VEVENT';
         }
 
         return true;
