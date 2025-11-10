@@ -61,6 +61,14 @@
         group: www-data
         mode: '0755'
 
+    - name: Ensure SnappyMail cache directory exists
+      file:
+        path: /dev/shm/snappymail-cache
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
     - name: Configure PHP-FPM pool
       template:
         src: "{{ playbook_dir }}/templates/snappymail/php-fpm-www.conf.j2"
@@ -135,7 +143,6 @@
         owner: root
         group: root
         mode: '0644'
-        validate: 'nginx -t -c %s'
       notify: Reload Nginx
 
     - name: Enable Nginx service
@@ -224,7 +231,7 @@
       git:
         repo: "{{ lookup('env', 'MAIL_REPO') }}"
         dest: /var/www/snappymail
-        version: "{{ lookup('env', 'MAIL_GIT_BRANCH') | default('main') }}"
+        version: "{{ lookup('env', 'MAIL_GIT_BRANCH') | default('main', true) }}"
         force: true
       become_user: deploy
       when: not git_repo.stat.exists
@@ -233,7 +240,7 @@
       git:
         repo: "{{ lookup('env', 'MAIL_REPO') }}"
         dest: /var/www/snappymail
-        version: "{{ lookup('env', 'MAIL_GIT_BRANCH') | default('main') }}"
+        version: "{{ lookup('env', 'MAIL_GIT_BRANCH') | default('main', true) }}"
         force: true
         update: true
       become_user: deploy
@@ -304,11 +311,26 @@
       become_user: deploy
       when: not snappymail_built.stat.exists
 
+    - name: Check if dist directory exists
+      stat:
+        path: /var/www/snappymail/dist
+      register: dist_dir
+
+    - name: Remove old dist directory if it exists (as root)
+      file:
+        path: /var/www/snappymail/dist
+        state: absent
+      when: dist_dir.stat.exists
+      become: true
+
     - name: Run build script to sync customizations
       command: ./scripts/build.sh
       args:
         chdir: /var/www/snappymail
       become_user: deploy
+      environment:
+        HOME: /home/deploy
+        FORWARDEMAIL_VERSION: "{{ lookup('env', 'FORWARDEMAIL_VERSION') | default('', true) }}"
 
     - name: Set permissions on data directory
       file:
@@ -330,7 +352,6 @@
         owner: root
         group: root
         mode: '0644'
-        validate: 'nginx -t -c %s'
       notify: Reload Nginx
 
     - name: Enable Nginx site
@@ -339,6 +360,10 @@
         dest: /etc/nginx/sites-enabled/snappymail.conf
         state: link
       notify: Reload Nginx
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      changed_when: false
 
     ##
     # Health Check Cron
