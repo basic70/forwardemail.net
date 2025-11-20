@@ -53,6 +53,30 @@
         state: present
         update_cache: true
 
+    - name: Verify PHP curl extension is loaded in CLI
+      command: php -m
+      register: php_cli_modules
+      changed_when: false
+
+    - name: Display PHP CLI modules (curl check)
+      debug:
+        msg: "PHP CLI has curl: {{ 'YES' if 'curl' in php_cli_modules.stdout else 'NO - WILL INSTALL' }}"
+
+    - name: Ensure php-curl is installed
+      apt:
+        name: php8.2-curl
+        state: present
+      notify: Restart PHP-FPM
+
+    - name: Verify curl extension file exists
+      stat:
+        path: /etc/php/8.2/mods-available/curl.ini
+      register: curl_ini
+
+    - name: Display curl extension status
+      debug:
+        msg: "curl.ini exists: {{ curl_ini.stat.exists }}"
+
     - name: Create PHP-FPM log directory
       file:
         path: /var/log/php-fpm
@@ -163,6 +187,10 @@
       service:
         name: nginx
         state: reloaded
+    - name: Restart fail2ban
+      service:
+        name: fail2ban
+        state: restarted
   tasks:
     ##
     # Firewall Configuration
@@ -197,6 +225,36 @@
         rule: allow
         port: "{{ lookup('env', 'MAIL_HTTP_PORT') }}"
         proto: tcp
+
+    - name: Install fail2ban
+      apt:
+        name: fail2ban
+        state: present
+        update_cache: true
+
+    - name: Deploy fail2ban filter for SnappyMail
+      template:
+        src: "{{ playbook_dir }}/templates/snappymail/fail2ban-snappymail-auth.conf.j2"
+        dest: /etc/fail2ban/filter.d/snappymail-auth.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart fail2ban
+
+    - name: Configure fail2ban jail for SnappyMail
+      template:
+        src: "{{ playbook_dir }}/templates/snappymail/fail2ban-snappymail-auth.local.j2"
+        dest: /etc/fail2ban/jail.d/snappymail-auth.local
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart fail2ban
+
+    - name: Ensure fail2ban service is enabled
+      systemd:
+        name: fail2ban
+        enabled: true
+        state: started
 
     - name: "Update ufw before.rules until #21 is resolved"
       template:
@@ -292,24 +350,29 @@
       debug:
         msg: "Node.js version: {{ node_version.stdout }}"
 
-    - name: Check if SnappyMail is already built
-      stat:
-        path: /var/www/snappymail/mail/snappymail/v/0.0.0/static/css/boot.min.css
-      register: snappymail_built
+    - name: Derive forwardemail.net repository root
+      set_fact:
+        forwardemail_repo_root: "{{ playbook_dir | dirname | dirname }}"
+
+    - name: Load local package.json for SnappyMail app version
+      set_fact:
+        snappymail_package_json: "{{ lookup('file', forwardemail_repo_root + '/package.json') | from_json }}"
+
+    - name: Set SnappyMail app version fact
+      set_fact:
+        snappymail_app_version: "{{ snappymail_package_json.version | default('0.0.0', true) }}"
 
     - name: Install SnappyMail dependencies
       command: npm install
       args:
         chdir: /var/www/snappymail/mail
       become_user: deploy
-      when: not snappymail_built.stat.exists
 
     - name: Build SnappyMail with gulp
       command: npx gulp
       args:
         chdir: /var/www/snappymail/mail
       become_user: deploy
-      when: not snappymail_built.stat.exists
 
     - name: Check if dist directory exists
       stat:
@@ -323,6 +386,17 @@
       when: dist_dir.stat.exists
       become: true
 
+    - name: Verify PHP CLI is available for build script
+      command: which php
+      register: php_path
+      become_user: deploy
+      changed_when: false
+      failed_when: false
+
+    - name: Display PHP path
+      debug:
+        msg: "PHP CLI path: {{ php_path.stdout if php_path.rc == 0 else 'NOT FOUND' }}"
+
     - name: Run build script to sync customizations
       command: ./scripts/build.sh
       args:
@@ -330,7 +404,33 @@
       become_user: deploy
       environment:
         HOME: /home/deploy
-        FORWARDEMAIL_VERSION: "{{ lookup('env', 'FORWARDEMAIL_VERSION') | default('', true) }}"
+        APP_VERSION: "{{ snappymail_app_version | default('0.0.0', true) }}"
+        PATH: "/usr/local/bin:/usr/bin:/bin:{{ ansible_env.PATH }}"
+      register: build_output
+
+    - name: Display build script output
+      debug:
+        var: build_output.stdout_lines
+
+    - name: Clear SnappyMail application cache
+      shell: rm -rf /dev/shm/snappymail-cache/*
+      ignore_errors: yes
+
+    - name: Clear PHP OPcache after deployment
+      shell: |
+        # Try to reset opcache via PHP CLI
+        php -r "if(function_exists('opcache_reset')) opcache_reset();" 2>/dev/null || true
+      become_user: www-data
+      environment:
+        TMPDIR: /tmp
+        TEMP: /tmp
+        TMP: /tmp
+      ignore_errors: yes
+
+    - name: Restart PHP-FPM to ensure fresh opcache
+      service:
+        name: php8.2-fpm
+        state: restarted
 
     - name: Set permissions on data directory
       file:
@@ -340,6 +440,65 @@
         group: www-data
         mode: '0700'
         recurse: true
+
+    ##
+    # Verify Plugin Deployment
+    ##
+
+    - name: Verify index.php has correct APP_VERSION
+      shell: grep "define('APP_VERSION'" /var/www/snappymail/dist/index.php
+      register: index_version
+      changed_when: false
+
+    - name: Display index.php APP_VERSION
+      debug:
+        msg: "index.php version: {{ index_version.stdout }}"
+
+    - name: Check if forwardemail plugin exists in versioned directory
+      stat:
+        path: "/var/www/snappymail/dist/snappymail/v/{{ snappymail_app_version }}/plugins/forwardemail/index.php"
+      register: plugin_file
+
+    - name: Verify plugin file exists
+      debug:
+        msg: "Plugin exists at v/{{ snappymail_app_version }}/plugins/forwardemail: {{ plugin_file.stat.exists }}"
+
+    - name: Check if plugin has new code (ensureCheckMailInterval)
+      shell: grep -c "ensureCheckMailInterval" "/var/www/snappymail/dist/snappymail/v/{{ snappymail_app_version }}/plugins/forwardemail/index.php" || echo "0"
+      register: plugin_has_new_code
+      changed_when: false
+      when: plugin_file.stat.exists
+
+    - name: Display plugin code verification
+      debug:
+        msg: "Plugin has ensureCheckMailInterval: {{ 'YES' if (plugin_has_new_code.stdout | int) > 0 else 'NO' }}"
+      when: plugin_file.stat.exists
+
+    - name: Verify forwardemail in enabled_list
+      shell: grep "enabled_list.*forwardemail" /var/www/snappymail/dist/data/_data_/_default_/configs/application.ini
+      register: plugin_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Display plugin enabled status
+      debug:
+        msg: "Plugin enabled in application.ini: {{ 'YES' if plugin_enabled.rc == 0 else 'NO - CHECK CONFIGURATION!' }}"
+
+    - name: Check for recent plugin log messages
+      shell: |
+        LOG_FILE=$(ls -t /var/www/snappymail/dist/data/_data_/_default_/logs/*.log 2>/dev/null | head -1)
+        if [ -n "$LOG_FILE" ]; then
+          grep "Forward Email Plugin" "$LOG_FILE" 2>/dev/null | tail -5 || echo "No plugin messages found"
+        else
+          echo "No log files found"
+        fi
+      register: plugin_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display recent plugin log messages
+      debug:
+        msg: "{{ plugin_logs.stdout_lines }}"
 
     ##
     # Configure Nginx Site
